@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any, List
 
-from src.report_language import normalize_report_language
+from src.report_language import normalize_report_language, uses_english_prompt_scaffolding
 from src.schemas.market_structure import MARKET_STRUCTURE_SCHEMA_VERSION
 
 
@@ -48,11 +48,11 @@ def format_market_structure_prompt_section(
         missing_fields.extend(_string_values(data_quality.get("missing_fields")))
     missing_fields = list(dict.fromkeys(missing_fields))
 
-    if language == "en":
-        lines = _format_en(context, stock_position, active_themes, leading_concepts, leading_industries, primary_name, risk_tags, missing_fields)
-        return "\n".join(lines) + "\n"
     if language == "ko":
         lines = _format_ko(context, stock_position, active_themes, leading_concepts, leading_industries, primary_name, risk_tags, missing_fields)
+        return "\n".join(lines) + "\n"
+    if uses_english_prompt_scaffolding(language):
+        lines = _format_en(context, stock_position, active_themes, leading_concepts, leading_industries, primary_name, risk_tags, missing_fields)
         return "\n".join(lines) + "\n"
 
     lines = _format_zh(context, stock_position, active_themes, leading_concepts, leading_industries, primary_name, risk_tags, missing_fields)

@@ -4065,12 +4065,12 @@ class TestStrategyEngineE2E(unittest.TestCase):
             self.assertEqual(count, 0, f"strategy_invalid_opinion_count should be 0 for summary_params={bad!r}")
 
             # 2. localize_strategy_synthesis_summary 不崩
-            for lang in ("zh", "en", "ko"):
+            for lang in ("zh", "en", "ko", "it"):
                 result = localize_strategy_synthesis_summary(synthesis, lang)
                 self.assertIsInstance(result, str, f"summary should be str for summary_params={bad!r}, lang={lang}")
 
             # 3. _append_strategy_synthesis_block 不崩
-            for lang in ("zh", "en", "ko"):
+            for lang in ("zh", "en", "ko", "it"):
                 labels = get_report_labels(lang)
                 lines: list = []
                 try:

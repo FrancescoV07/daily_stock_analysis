@@ -15,6 +15,7 @@ from src.report_language import (
     localize_trend_prediction,
     localize_bias_status,
     normalize_report_language,
+    uses_english_prompt_scaffolding,
 )
 
 
@@ -141,6 +142,70 @@ class KoreanReportLanguageTestCase(unittest.TestCase):
     def test_korean_values_canonicalize_back_for_other_languages(self) -> None:
         self.assertEqual(localize_trend_prediction("상승", "en"), "Bullish")
         self.assertEqual(localize_operation_advice("적극 매도", "zh"), "强烈卖出")
+
+
+class ItalianReportLanguageTestCase(unittest.TestCase):
+    def test_italian_is_supported(self) -> None:
+        self.assertIn("it", SUPPORTED_REPORT_LANGUAGES)
+
+    def test_normalize_italian_aliases(self) -> None:
+        self.assertEqual(normalize_report_language("it"), "it")
+        self.assertEqual(normalize_report_language("italian"), "it")
+        self.assertEqual(normalize_report_language("italiano"), "it")
+        self.assertEqual(normalize_report_language("it-IT"), "it")
+        self.assertEqual(normalize_report_language("ita"), "it")
+
+    def test_unknown_language_still_falls_back_to_default(self) -> None:
+        self.assertEqual(normalize_report_language("fr"), "zh")
+        self.assertEqual(normalize_report_language(None), "zh")
+
+    def test_italian_labels_cover_full_english_key_set(self) -> None:
+        it_labels = get_report_labels("it")
+        en_labels = get_report_labels("en")
+        self.assertEqual(set(it_labels.keys()), set(en_labels.keys()))
+        self.assertEqual(it_labels["dashboard_title"], "Cruscotto decisionale")
+        self.assertEqual(it_labels["risk_alerts_label"], "Allerte di rischio")
+
+    def test_italian_sentiment_label_bands(self) -> None:
+        self.assertEqual(get_sentiment_label(80, "it"), "Molto rialzista")
+        self.assertEqual(get_sentiment_label(40, "it"), "Neutrale")
+        self.assertEqual(get_sentiment_label(0, "it"), "Molto ribassista")
+
+    def test_italian_operation_advice_and_trend(self) -> None:
+        self.assertEqual(localize_operation_advice("买入", "it"), "Acquisto")
+        self.assertEqual(localize_operation_advice("strong sell", "it"), "Vendita forte")
+        self.assertEqual(localize_trend_prediction("bullish", "it"), "Rialzista")
+
+    def test_italian_localized_stock_name_placeholder(self) -> None:
+        self.assertEqual(
+            get_localized_stock_name("股票AAPL", "AAPL", "it"),
+            "Titolo da confermare",
+        )
+
+    def test_existing_languages_unchanged(self) -> None:
+        self.assertEqual(get_sentiment_label(80, "en"), "Very Bullish")
+        self.assertEqual(get_sentiment_label(40, "zh"), "中性")
+        self.assertEqual(get_sentiment_label(80, "ko"), "매우 낙관")
+
+    def test_italian_advice_canonicalizes_to_decision_type(self) -> None:
+        self.assertEqual(infer_decision_type_from_advice("acquisto"), "buy")
+        self.assertEqual(infer_decision_type_from_advice("vendi"), "sell")
+        self.assertEqual(infer_decision_type_from_advice("mantieni"), "hold")
+        self.assertEqual(infer_decision_type_from_advice("attendi"), "hold")
+
+    def test_italian_advice_resolves_signal_level(self) -> None:
+        self.assertEqual(get_signal_level("acquisto", 72, "it"), ("Acquisto", "🟢", "buy"))
+        self.assertEqual(get_signal_level("vendi", 30, "it"), ("Vendi", "🔴", "sell"))
+
+    def test_italian_values_canonicalize_back_for_other_languages(self) -> None:
+        self.assertEqual(localize_trend_prediction("Rialzista", "en"), "Bullish")
+        self.assertEqual(localize_operation_advice("Vendita forte", "zh"), "强烈卖出")
+
+    def test_italian_uses_english_prompt_scaffolding(self) -> None:
+        self.assertTrue(uses_english_prompt_scaffolding("it"))
+        self.assertTrue(uses_english_prompt_scaffolding("ko"))
+        self.assertTrue(uses_english_prompt_scaffolding("en"))
+        self.assertFalse(uses_english_prompt_scaffolding("zh"))
 
 
 if __name__ == "__main__":

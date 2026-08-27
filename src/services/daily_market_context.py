@@ -17,7 +17,7 @@ from src.core.market_review_lock import (
     release_market_review_lock,
     try_acquire_market_review_lock,
 )
-from src.report_language import normalize_report_language
+from src.report_language import normalize_report_language, uses_english_prompt_scaffolding
 from src.services.run_diagnostics import (
     activate_run_diagnostic_context,
     reset_run_diagnostic_context,
@@ -659,7 +659,7 @@ def format_daily_market_context_prompt_section(
     position_cap = str(payload.get("position_cap") or "").strip()
     source = str(payload.get("source") or "").strip()
 
-    if language in ("en", "ko"):
+    if uses_english_prompt_scaffolding(language):
         label = _REGION_LABEL_EN.get(region, region)
         lines = [
             "\n## Daily Market Context",
