@@ -313,6 +313,23 @@ def test_localize_action_label_supports_korean(action: str, expected_label: str)
     assert localize_action_label(action, "ko") == expected_label
 
 
+@pytest.mark.parametrize(
+    ("action", "expected_label"),
+    [
+        ("buy", "Acquisto"),
+        ("add", "Accumula"),
+        ("hold", "Mantieni"),
+        ("reduce", "Riduci"),
+        ("sell", "Vendi"),
+        ("watch", "Attendi"),
+        ("avoid", "Evita"),
+        ("alert", "Allerta"),
+    ],
+)
+def test_localize_action_label_supports_italian(action: str, expected_label: str) -> None:
+    assert localize_action_label(action, "it") == expected_label
+
+
 def test_build_action_fields_respects_market_review_exclusion() -> None:
     fields = build_action_fields(
         operation_advice="买入",

@@ -13,6 +13,7 @@ import re
 from typing import Optional
 
 from src.report_language import uses_english_prompt_scaffolding
+from src.services.market_symbol_utils import get_suffix_market
 
 
 def detect_market(stock_code: Optional[str]) -> str:
