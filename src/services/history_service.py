@@ -36,6 +36,7 @@ from src.report_language import (
     localize_trend_prediction,
     normalize_report_language,
     normalize_strategy_synthesis_payload,
+    pick_localized_text,
     strategy_invalid_opinion_count,
 )
 from src.storage import DatabaseManager
@@ -1012,21 +1013,17 @@ class HistoryService:
         report_language = normalize_report_language(getattr(result, "report_language", "zh"))
         labels = get_report_labels(report_language)
 
-        def _label(en: str, zh: str, ko: str) -> str:
-            if report_language == "en":
-                return en
-            if report_language == "ko":
-                return ko
-            return zh
+        def _label(en: str, zh: str, ko: str, it: Optional[str] = None) -> str:
+            return pick_localized_text(report_language, zh=zh, en=en, ko=ko, it=it)
 
-        analysis_date_label = _label("Analysis Date", "分析日期", "분석일")
-        report_time_label = _label("Report Time", "报告生成时间", "생성 시각")
-        reason_label = _label("Rationale", "操作理由", "판단 근거")
-        risk_warning_label = _label("Risk Warning", "风险提示", "리스크 경고")
-        technical_heading = _label("Technicals", "技术面", "기술적 분석")
-        ma_label = _label("Moving Averages", "均线", "이동평균")
-        volume_analysis_label = _label("Volume", "量能", "거래량")
-        news_heading = _label("News Flow", "消息面", "뉴스 흐름")
+        analysis_date_label = _label("Analysis Date", "分析日期", "분석일", "Data analisi")
+        report_time_label = _label("Report Time", "报告生成时间", "생성 시각", "Ora del report")
+        reason_label = _label("Rationale", "操作理由", "판단 근거", "Motivazione")
+        risk_warning_label = _label("Risk Warning", "风险提示", "리스크 경고", "Avviso di rischio")
+        technical_heading = _label("Technicals", "技术面", "기술적 분석", "Analisi tecnica")
+        ma_label = _label("Moving Averages", "均线", "이동평균", "Medie mobili")
+        volume_analysis_label = _label("Volume", "量能", "거래량", "Volume")
+        news_heading = _label("News Flow", "消息面", "뉴스 흐름", "Flusso di notizie")
 
         # Escape markdown special characters in stock name
         name_escaped = self._escape_md(

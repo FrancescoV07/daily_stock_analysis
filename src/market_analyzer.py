@@ -22,7 +22,7 @@ import pandas as pd
 
 from src.agent.provider_trace import resolved_model_provider_identity
 from src.config import get_config
-from src.report_language import normalize_report_language
+from src.report_language import normalize_report_language, uses_english_prompt_scaffolding
 from src.search_service import SearchService
 from src.core.market_profile import get_profile, MarketProfile
 from src.core.market_strategy import get_market_strategy_blueprint
@@ -283,7 +283,7 @@ class MarketAnalyzer:
         return normalized_fallback_model or backend
 
     def _get_output_language(self) -> str:
-        """Return the truthful report language (zh/en/ko) for payload and directives."""
+        """Return the truthful report language (zh/en/ko/it) for payload and directives."""
         return normalize_report_language(
             getattr(getattr(self, "config", None), "report_language", "zh")
         )
@@ -292,7 +292,7 @@ class MarketAnalyzer:
         # Structural/template language. Korean reuses the English scaffolding;
         # the Korean output directive is applied in the prompt builder.
         language = self._get_output_language()
-        return "en" if language == "ko" else language
+        return "en" if uses_english_prompt_scaffolding(language) else language
 
     def _get_template_review_language(self) -> str:
         return self._get_review_language()
@@ -1654,7 +1654,13 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         review_language = self._get_review_language()
         # Korean reuses the English structural template but the model is told to
         # write the entire shell, headings, guidance and conclusion in Korean.
-        shell_language_label = "Korean (한국어)" if self._get_output_language() == "ko" else "English"
+        output_language = self._get_output_language()
+        if output_language == "ko":
+            shell_language_label = "Korean (한국어)"
+        elif output_language == "it":
+            shell_language_label = "Italian (Italiano)"
+        else:
+            shell_language_label = "English"
 
         # 指数行情信息（简洁格式，不用emoji）
         indices_text = ""

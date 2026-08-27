@@ -30,14 +30,14 @@ _ACTION_VALUES = set(get_args(DecisionAction))
 _NON_STOCK_REPORT_TYPES = {"market_review"}
 
 _ACTION_LABELS: Dict[str, Dict[str, str]] = {
-    "buy": {"zh": "买入", "en": "Buy", "ko": "매수"},
-    "add": {"zh": "加仓", "en": "Add", "ko": "추가 매수"},
-    "hold": {"zh": "持有", "en": "Hold", "ko": "보유"},
-    "reduce": {"zh": "减仓", "en": "Reduce", "ko": "비중축소"},
-    "sell": {"zh": "卖出", "en": "Sell", "ko": "매도"},
-    "watch": {"zh": "观望", "en": "Watch", "ko": "관망"},
-    "avoid": {"zh": "回避", "en": "Avoid", "ko": "회피"},
-    "alert": {"zh": "预警", "en": "Alert", "ko": "경고"},
+    "buy": {"zh": "买入", "en": "Buy", "ko": "매수", "it": "Acquisto"},
+    "add": {"zh": "加仓", "en": "Add", "ko": "추가 매수", "it": "Accumula"},
+    "hold": {"zh": "持有", "en": "Hold", "ko": "보유", "it": "Mantieni"},
+    "reduce": {"zh": "减仓", "en": "Reduce", "ko": "비중축소", "it": "Riduci"},
+    "sell": {"zh": "卖出", "en": "Sell", "ko": "매도", "it": "Vendi"},
+    "watch": {"zh": "观望", "en": "Watch", "ko": "관망", "it": "Attendi"},
+    "avoid": {"zh": "回避", "en": "Avoid", "ko": "회피", "it": "Evita"},
+    "alert": {"zh": "预警", "en": "Alert", "ko": "경고", "it": "Allerta"},
 }
 
 _EXPLICIT_ALIASES: Dict[str, DecisionAction] = {
@@ -46,6 +46,19 @@ _EXPLICIT_ALIASES: Dict[str, DecisionAction] = {
     "trim": "reduce",
     "strong sell": "sell",
     "wait": "watch",
+    "acquisto": "buy",
+    "acquisto forte": "buy",
+    "compra": "buy",
+    "accumula": "add",
+    "mantieni": "hold",
+    "detieni": "hold",
+    "riduci": "reduce",
+    "alleggerisci": "reduce",
+    "vendi": "sell",
+    "vendita forte": "sell",
+    "attendi": "watch",
+    "osserva": "watch",
+    "evita": "avoid",
 }
 
 _ACTION_PHRASES: Dict[DecisionAction, tuple[str, ...]] = {
@@ -58,6 +71,7 @@ _ACTION_PHRASES: Dict[DecisionAction, tuple[str, ...]] = {
         "回避",
         "规避",
         "avoid",
+        "evita",
     ),
     "alert": (
         "风险预警",
@@ -65,6 +79,7 @@ _ACTION_PHRASES: Dict[DecisionAction, tuple[str, ...]] = {
         "risk alert",
         "警惕",
         "alert",
+        "allerta",
     ),
     "buy": (
         "强烈买入",
@@ -74,29 +89,36 @@ _ACTION_PHRASES: Dict[DecisionAction, tuple[str, ...]] = {
         "布局",
         "建仓",
         "buy",
+        "acquisto",
+        "compra",
     ),
     "add": (
         "加仓",
         "增持",
         "accumulate",
         "add",
+        "accumula",
     ),
     "hold": (
         "持有观察",
         "洗盘观察",
         "持有",
         "hold",
+        "mantieni",
     ),
     "watch": (
         "观望",
         "等待",
         "wait",
         "watch",
+        "attendi",
+        "osserva",
     ),
     "reduce": (
         "减仓",
         "trim",
         "reduce",
+        "riduci",
     ),
     "sell": (
         "强烈卖出",
@@ -105,6 +127,8 @@ _ACTION_PHRASES: Dict[DecisionAction, tuple[str, ...]] = {
         "卖出",
         "清仓",
         "sell",
+        "vendi",
+        "vendita",
     ),
 }
 

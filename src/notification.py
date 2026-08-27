@@ -53,6 +53,7 @@ from src.report_language import (
     localize_trend_prediction,
     normalize_report_language,
     normalize_strategy_synthesis_payload,
+    pick_localized_text,
     strategy_invalid_opinion_count,
 )
 from src.schemas.decision_action import (
@@ -1259,19 +1260,15 @@ class NotificationService(
         report_language = self._get_report_language(results)
         labels = get_report_labels(report_language)
 
-        def _nlabel(en: str, zh: str, ko: str) -> str:
-            if report_language == "en":
-                return en
-            if report_language == "ko":
-                return ko
-            return zh
+        def _nlabel(en: str, zh: str, ko: str, it: Optional[str] = None) -> str:
+            return pick_localized_text(report_language, zh=zh, en=en, ko=ko, it=it)
 
-        reason_label = _nlabel("Rationale", "操作理由", "판단 근거")
-        risk_warning_label = _nlabel("Risk Warning", "风险提示", "리스크 경고")
-        technical_heading = _nlabel("Technicals", "技术面", "기술적 분석")
-        ma_label = _nlabel("Moving Averages", "均线", "이동평균")
-        volume_analysis_label = _nlabel("Volume", "量能", "거래량")
-        news_heading = _nlabel("News Flow", "消息面", "뉴스 흐름")
+        reason_label = _nlabel("Rationale", "操作理由", "판단 근거", "Motivazione")
+        risk_warning_label = _nlabel("Risk Warning", "风险提示", "리스크 경고", "Avviso di rischio")
+        technical_heading = _nlabel("Technicals", "技术面", "기술적 분석", "Analisi tecnica")
+        ma_label = _nlabel("Moving Averages", "均线", "이동평균", "Medie mobili")
+        volume_analysis_label = _nlabel("Volume", "量能", "거래량", "Volume")
+        news_heading = _nlabel("News Flow", "消息面", "뉴스 흐름", "Flusso di notizie")
         if getattr(config, 'report_renderer_enabled', False) and results:
             from src.services.report_renderer import render
             out = render(
@@ -2117,7 +2114,10 @@ class NotificationService(
         mapping = self._SOURCE_DISPLAY_NAMES.get(raw_source)
         if not mapping:
             return raw_source
-        return mapping[normalize_report_language(language)]
+        lang = normalize_report_language(language)
+        if lang in mapping:
+            return mapping[lang]
+        return mapping.get("en") or mapping.get("zh") or raw_source
 
     def _append_market_snapshot(self, lines: List[str], result: AnalysisResult) -> None:
         snapshot = getattr(result, 'market_snapshot', None)

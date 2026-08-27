@@ -48,6 +48,8 @@ from src.report_language import (
     localize_operation_advice,
     localize_trend_prediction,
     normalize_report_language,
+    pick_localized_text,
+    uses_english_prompt_scaffolding,
 )
 from src.search_service import SearchService
 from src.analysis_context_pack_prompt import format_analysis_context_pack_prompt_section
@@ -1457,7 +1459,7 @@ class StockAnalysisPipeline:
                 initial_context["analysis_context_pack_summary"] = analysis_context_pack_summary
 
             # 运行 Agent
-            if report_language in ("en", "ko"):
+            if uses_english_prompt_scaffolding(report_language):
                 message = f"Analyze stock {code} ({stock_name}) and return the full decision dashboard JSON."
             else:
                 message = f"请分析股票 {code} ({stock_name})，并生成决策仪表盘报告。"
@@ -2151,10 +2153,12 @@ class StockAnalysisPipeline:
                 )
                 self._backfill_agent_dashboard_fields(result, trend_result, report_language)
             if not result.error_message:
-                result.error_message = (
-                    "Agent failed to generate a valid decision dashboard" if report_language == "en"
-                    else "에이전트가 유효한 결정 대시보드를 생성하지 못했습니다" if report_language == "ko"
-                    else "Agent 未能生成有效的决策仪表盘"
+                result.error_message = pick_localized_text(
+                    report_language,
+                    en="Agent failed to generate a valid decision dashboard",
+                    zh="Agent 未能生成有效的决策仪表盘",
+                    ko="에이전트가 유효한 결정 대시보드를 생성하지 못했습니다",
+                    it="L'agente non è riuscito a generare un cruscotto decisionale valido",
                 )
 
         explicit_action = dash.get("action") if isinstance(dash, dict) else None
@@ -2331,11 +2335,13 @@ class StockAnalysisPipeline:
         trend = (result.trend_prediction or "").strip()
         advice = (result.operation_advice or "").strip()
         if trend and advice:
-            if report_language == "en":
-                return f"Trend view: {trend}; action advice: {advice}."
-            if report_language == "ko":
-                return f"추세 결론: {trend}; 대응 전략: {advice}."
-            return f"趋势结论：{trend}；操作建议：{advice}。"
+            return pick_localized_text(
+                report_language,
+                en=f"Trend view: {trend}; action advice: {advice}.",
+                zh=f"趋势结论：{trend}；操作建议：{advice}。",
+                ko=f"추세 결론: {trend}; 대응 전략: {advice}.",
+                it=f"Vista di trend: {trend}; consiglio operativo: {advice}.",
+            )
         return ""
 
     def _backfill_agent_dashboard_fields(
@@ -2371,10 +2377,12 @@ class StockAnalysisPipeline:
             core["one_sentence"] = result.analysis_summary or self._summary_fallback_from_result(
                 result,
                 report_language,
-            ) or (
-                "Analysis pending" if report_language == "en"
-                else "분석 보완 예정" if report_language == "ko"
-                else "分析待补充"
+            ) or pick_localized_text(
+                report_language,
+                en="Analysis pending",
+                zh="分析待补充",
+                ko="분석 보완 예정",
+                it="Analisi in attesa",
             )
 
         intelligence = dashboard.get("intelligence")

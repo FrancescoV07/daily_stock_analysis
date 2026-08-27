@@ -40,6 +40,15 @@ class DecisionAgentLanguageDirectiveTestCase(unittest.TestCase):
         prompt = self._system_prompt("ko", chat=True)
         self.assertIn("항상 한국어로 답변하세요.", prompt)
 
+    def test_italian_dashboard_directive(self) -> None:
+        prompt = self._system_prompt("it")
+        self.assertIn("Write all human-readable JSON values in Italian (Italiano).", prompt)
+        self.assertIn("`decision_type` must remain `buy|hold|sell`.", prompt)
+
+    def test_italian_chat_directive(self) -> None:
+        prompt = self._system_prompt("it", chat=True)
+        self.assertIn("Rispondi sempre in italiano.", prompt)
+
     def test_english_directive_unchanged(self) -> None:
         prompt = self._system_prompt("en")
         self.assertIn("Write all human-readable JSON values in English.", prompt)
@@ -60,6 +69,15 @@ class StructuralLanguageRoutingTestCase(unittest.TestCase):
         en_section = format_market_phase_prompt_section(_phase_ctx(), report_language="en")
         self.assertEqual(ko_section, en_section)
         self.assertIn("## Market Phase Context", ko_section)
+
+    def test_context_pack_italian_reuses_english_scaffolding(self) -> None:
+        self.assertEqual(normalize_analysis_context_pack_language("it"), "en")
+
+    def test_market_phase_italian_matches_english_structure(self) -> None:
+        it_section = format_market_phase_prompt_section(_phase_ctx(), report_language="it")
+        en_section = format_market_phase_prompt_section(_phase_ctx(), report_language="en")
+        self.assertEqual(it_section, en_section)
+        self.assertIn("## Market Phase Context", it_section)
 
 
 if __name__ == "__main__":

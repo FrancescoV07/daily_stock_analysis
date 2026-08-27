@@ -135,6 +135,20 @@ def test_request_models_accept_korean_report_language() -> None:
     assert market_review_request.report_language == "ko"
 
 
+def test_request_models_accept_italian_report_language() -> None:
+    analyze_request = AnalyzeRequest.model_validate({
+        "stock_code": "NVDA",
+        "report_language": "it",
+    })
+    assert analyze_request.report_language == "it"
+
+    market_review_request = MarketReviewRequest.model_validate({
+        "send_notification": False,
+        "report_language": "it",
+    })
+    assert market_review_request.report_language == "it"
+
+
 @pytest.mark.parametrize(
     ("raw_region", "expected"),
     [

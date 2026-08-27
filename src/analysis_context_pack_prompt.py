@@ -6,6 +6,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Dict, Iterable, List, Optional
 
+from src.report_language import uses_english_prompt_scaffolding
+
 
 BLOCK_LABELS_ZH = {
     "quote": "行情",
@@ -103,7 +105,7 @@ SENSITIVE_MARKERS = (
 def normalize_analysis_context_pack_language(report_language: str = "zh") -> str:
     # Korean reuses the English structural context labels; the model is
     # constrained to Korean output via the analysis output-language directive.
-    return "en" if str(report_language or "").lower() in {"en", "ko"} else "zh"
+    return "en" if uses_english_prompt_scaffolding(report_language) else "zh"
 
 
 def get_analysis_context_pack_block_labels(report_language: str = "zh") -> Dict[str, str]:
