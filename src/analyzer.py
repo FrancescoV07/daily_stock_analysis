@@ -82,6 +82,9 @@ from src.llm.response_content import strip_leading_think_wrapper
 from src.storage import persist_llm_usage
 from src.data.stock_mapping import STOCK_NAME_MAP
 from src.report_language import (
+    display_metric,
+    format_money_amount,
+    format_share_volume,
     get_signal_level,
     get_no_data_text,
     get_placeholder_text,
@@ -1344,10 +1347,28 @@ def _capital_flow_bias_with_status(
 def _capital_flow_status_for_stability(reason: str, language: str) -> str:
     normalized = str(reason or "").strip().lower()
     if "not_supported" in normalized or "unsupported" in normalized or "not available" in normalized:
-        return "市场资金流服务暂不支持" if language == "zh" else "Capital flow source unsupported"
+        return pick_localized_text(
+            language,
+            zh="市场资金流服务暂不支持",
+            en="Capital flow source unsupported",
+            ko="시장 자금 흐름 서비스를 지원하지 않음",
+            it="Flusso di capitale non supportato",
+        )
     if "empty_stock_flow" in normalized or "missing" in normalized:
-        return "资金流数据缺失" if language == "zh" else "capital flow data unavailable"
-    return "资金流数据不可用" if language == "zh" else "capital flow unavailable"
+        return pick_localized_text(
+            language,
+            zh="资金流数据缺失",
+            en="capital flow data unavailable",
+            ko="자금 흐름 데이터 없음",
+            it="dati sul flusso di capitale non disponibili",
+        )
+    return pick_localized_text(
+        language,
+        zh="资金流数据不可用",
+        en="capital flow unavailable",
+        ko="자금 흐름 데이터를 사용할 수 없음",
+        it="flusso di capitale non disponibile",
+    )
 
 
 def _set_decision_stability_unavailable(
@@ -1363,7 +1384,13 @@ def _set_decision_stability_unavailable(
     result.dashboard = dashboard
     dashboard["decision_stability"] = {
         "applied": False,
-        "reason": "资金流不可用，未使用资金流校准" if language == "zh" else "Capital flow unavailable; stability calibration not applied",
+        "reason": pick_localized_text(
+            language,
+            zh="资金流不可用，未使用资金流校准",
+            en="Capital flow unavailable; stability calibration not applied",
+            ko="자금 흐름을 사용할 수 없어 안정성 보정을 적용하지 않았습니다",
+            it="Flusso di capitale non disponibile; calibrazione di stabilità non applicata",
+        ),
         "capital_flow_status": _capital_flow_status_for_stability(flow_status, language),
         "current_price": current_price,
         "support": support,
@@ -1495,6 +1522,27 @@ def _downgrade_buy_without_capital_flow(
         no_position = "空仓先不追买，等待资金流恢复、支撑确认或有效突破后再行动。"
         has_position = "持仓以关键支撑为风控线，资金流恢复前控制仓位。"
         confidence = "低"
+    elif language == "ko":
+        advice = "보유 관찰"
+        reason = f"{status_text}; 매수 결론에 자금 흐름 확인이 없어 관찰로 처리합니다."
+        no_position = "현금 보유 시 추격 매수하지 말고 자금 흐름 회복, 지지 확인 또는 유효 돌파 후 행동하세요."
+        has_position = "보유 시 핵심 지지선을 리스크 관리선으로 삼고 자금 흐름이 회복될 때까지 비중을 통제하세요."
+        confidence = "낮음"
+    elif language == "it":
+        advice = "Mantieni e osserva"
+        reason = (
+            f"{status_text}; il segnale di acquisto manca della conferma dei flussi di capitale, "
+            "quindi trattalo solo come osservazione."
+        )
+        no_position = (
+            "Non inseguire; attendi il recupero dei flussi di capitale, "
+            "la conferma del supporto o un breakout valido."
+        )
+        has_position = (
+            "Usa il supporto chiave come linea di rischio e tieni la size sotto controllo "
+            "finché i flussi di capitale non si riprendono."
+        )
+        confidence = "Bassa"
     else:
         advice = "Hold and watch"
         reason = f"{status_text}; the buy call lacks capital-flow confirmation, so treat it as watch-only."
@@ -2474,6 +2522,12 @@ class GeminiAnalyzer:
 - All human-readable JSON values must be written in Italian (Italiano).
 - Use the common Italian or original listed company name when confident; do not invent one.
 - This includes `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, nested dashboard text, checklist items, and all narrative summaries.
+- Do not copy Chinese example tokens such as 成, 不急, 安全, 平量, 放量, 缩量, 盘后复盘, 无盘中动作, 利空, 万股, or 美元.
+- `time_sensitivity` must be Italian: Immediato / In giornata / Questa settimana / Non urgente / Prossima sessione.
+- `bias_status` must be Italian: Sicuro / Attenzione / Pericolo.
+- `volume_status` must be Italian: In aumento / Contrazione / Volume stabile.
+- `suggested_position` must use a percent (for example 30%), never 成.
+- `phase_decision.action_window` and `immediate_action` must be Italian.
 """
         return base_prompt + """
 
@@ -4577,6 +4631,8 @@ class GeminiAnalyzer:
 - This includes `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, all nested dashboard text, checklist items, and every summary field.
 - Use the common Italian or original listed company name when you are confident. If not, keep the listed company name rather than inventing one.
 - When data is missing, explain it in Italian instead of Chinese.
+- Do not copy Chinese example tokens such as 成, 不急, 安全, 平量, 放量, 缩量, 盘后复盘, 无盘中动作, 利空, 万股, or 美元.
+- Use percent position size (for example 30%), never 成.
 """
         else:
             prompt += f"""
@@ -4590,27 +4646,19 @@ class GeminiAnalyzer:
         
         return prompt
     
-    def _format_volume(self, volume: Optional[float]) -> str:
+    def _format_volume(self, volume: Optional[float], language: Optional[str] = None) -> str:
         """格式化成交量显示"""
-        if volume is None:
-            return 'N/A'
-        if volume >= 1e8:
-            return f"{volume / 1e8:.2f} 亿股"
-        elif volume >= 1e4:
-            return f"{volume / 1e4:.2f} 万股"
-        else:
-            return f"{volume:.0f} 股"
+        lang = normalize_report_language(
+            language or getattr(self._get_runtime_config(), "report_language", "zh")
+        )
+        return format_share_volume(volume, lang)
     
-    def _format_amount(self, amount: Optional[float]) -> str:
+    def _format_amount(self, amount: Optional[float], language: Optional[str] = None) -> str:
         """格式化成交额显示"""
-        if amount is None:
-            return 'N/A'
-        if amount >= 1e8:
-            return f"{amount / 1e8:.2f} 亿元"
-        elif amount >= 1e4:
-            return f"{amount / 1e4:.2f} 万元"
-        else:
-            return f"{amount:.0f} 元"
+        lang = normalize_report_language(
+            language or getattr(self._get_runtime_config(), "report_language", "zh")
+        )
+        return format_money_amount(amount, None, lang)
 
     def _format_percent(self, value: Optional[float]) -> str:
         """格式化百分比显示"""
@@ -4671,7 +4719,7 @@ class GeminiAnalyzer:
         if realtime:
             snapshot.update({
                 "price": self._format_price(realtime.get('price')),
-                "volume_ratio": realtime.get('volume_ratio', 'N/A'),
+                "volume_ratio": display_metric(realtime.get('volume_ratio')),
                 "turnover_rate": self._format_percent(realtime.get('turnover_rate')),
                 "source": getattr(realtime.get('source'), 'value', realtime.get('source', 'N/A')),
             })

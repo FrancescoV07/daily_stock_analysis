@@ -1535,7 +1535,7 @@ def _market_data(markdown_text: str, generated_on: date) -> MarketPoster:
                 tone = "primary"
             poster.breadth.append((label, value, tone))
 
-    sector_section = _section(markdown_text, "板块主线", "sector highlights", "섹터 하이라이트", "주도 섹터")
+    sector_section = _section(markdown_text, "板块主线", "sector highlights", "섹터 하이라이트", "주도 섹터", "settori / temi")
     sector_table = (
         _find_table(sector_section, "板块", "涨跌幅")
         or _find_table(sector_section, "sector", "change")
@@ -1739,7 +1739,7 @@ def _should_keep_market_fallback(markdown_text: str, data: MarketPoster) -> bool
             bool(data.indices),
         ),
         (
-            _has_meaningful_section(markdown_text, "板块主线", "sector highlights", "섹터 하이라이트", "주도 섹터"),
+            _has_meaningful_section(markdown_text, "板块主线", "sector highlights", "섹터 하이라이트", "주도 섹터", "settori / temi"),
             bool(data.sectors),
         ),
         (

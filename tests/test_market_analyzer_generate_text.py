@@ -3952,6 +3952,44 @@ class TestMarketAnalyzerBypassFix:
         assert "### 6. Strategy Framework" in result
         assert "### 一、市场总结" not in result
 
+    def test_generate_template_review_uses_italian_shell_when_report_language_is_it(self):
+        from src.market_analyzer import MarketOverview, MarketIndex
+
+        ma = self._make_market_analyzer_with_mock_generate_text(return_value=None)
+        ma.config.report_language = "it"
+        overview = MarketOverview(
+            date="2026-03-05",
+            indices=[
+                MarketIndex(
+                    code="000001",
+                    name="上证指数",
+                    current=3300.0,
+                    change=12.0,
+                    change_pct=0.36,
+                )
+            ],
+            up_count=3200,
+            down_count=1800,
+            limit_up_count=88,
+            limit_down_count=5,
+            total_amount=14567.0,
+            top_sectors=[{"name": "AI算力", "change_pct": 3.25}],
+            bottom_sectors=[{"name": "煤炭", "change_pct": -1.12}],
+        )
+
+        result = ma.generate_market_review(overview, [])
+
+        assert "Recap mercato A-share" in result
+        assert "### 1. Sintesi di mercato" in result
+        assert "### 3. Ampiezza e liquidità" in result
+        assert "### 4. Settori / temi" in result
+        assert "### 6. Quadro operativo" in result
+        assert "A-share Market Recap" not in result
+        assert "板块主线" not in result
+        assert "排名" not in result
+        assert "上证指数" not in result
+        assert "SSE Composite" in result
+
     def test_generate_template_review_uses_jp_title_for_english_fallback(self):
         from src.core.market_profile import JP_PROFILE
         from src.core.market_strategy import get_market_strategy_blueprint
@@ -4102,6 +4140,56 @@ Sector text.
         assert "| 1 | AI算力 | +3.25% |" in result
         assert "#### Lagging Industry Sectors" in result
         assert "| 1 | 煤炭 | -1.12% |" in result
+
+    def test_inject_data_into_review_matches_italian_headings(self):
+        from src.market_analyzer import MarketOverview, MarketIndex
+
+        ma = self._make_market_analyzer_with_mock_generate_text(return_value="review")
+        ma.config.report_language = "it"
+        overview = MarketOverview(
+            date="2026-03-05",
+            indices=[
+                MarketIndex(
+                    code="000001",
+                    name="上证指数",
+                    current=3300.0,
+                    change=12.0,
+                    change_pct=0.36,
+                    amount=145000000000.0,
+                )
+            ],
+            up_count=3200,
+            down_count=1800,
+            flat_count=100,
+            limit_up_count=88,
+            limit_down_count=5,
+            total_amount=14567.0,
+            top_sectors=[{"name": "AI算力", "change_pct": 3.25}],
+            bottom_sectors=[{"name": "煤炭", "change_pct": -1.12}],
+        )
+        review = """## 2026-03-05 Recap mercato A-share
+
+### 1. Sintesi di mercato
+Summary text.
+
+### 2. Principali indici
+Index text.
+
+### 4. Settori / temi
+Sector text.
+"""
+
+        result = ma._inject_data_into_review(review, overview)
+
+        assert "板块主线" not in result
+        assert "| 排名 |" not in result
+        assert "| 涨跌幅 |" not in result
+        assert "| Pos. |" in result
+        assert "| Indice |" in result
+        assert "SSE Composite" in result
+        assert "上证指数" not in result
+        assert "#### Settori industriali in testa" in result
+        assert "A-share Market Recap" not in result
 
     def test_inject_data_into_review_matches_reference_style_chinese_headings(self):
         from src.market_analyzer import MarketOverview, MarketIndex
@@ -4395,6 +4483,30 @@ Index text.
             " (Reuters / 2026-05-06)"
         ) in result
         assert "（Reuters" not in result
+
+    def test_news_block_uses_italian_heading_when_report_language_is_it(self):
+        from src.market_analyzer import MarketAnalyzer
+
+        ma = MarketAnalyzer.__new__(MarketAnalyzer)
+        ma.config = SimpleNamespace(report_language="it")
+        ma.region = "cn"
+
+        result = ma._build_news_block([
+            {
+                "title": "Chip stocks rally as AI demand improves",
+                "source": "Reuters",
+                "published_date": "2026-05-06",
+                "url": "https://example.com/news/2",
+            }
+        ])
+
+        assert "#### Catalizzatori di news" in result
+        assert "#### News Catalysts" not in result
+        assert "近三日市场线索" not in result
+        assert (
+            "- 1. [Chip stocks rally as AI demand improves](https://example.com/news/2)"
+            " (Reuters / 2026-05-06)"
+        ) in result
 
     def test_review_prompt_caps_news_url_context(self):
         from src.market_analyzer import MarketOverview

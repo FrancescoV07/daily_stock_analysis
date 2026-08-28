@@ -38,19 +38,31 @@ from src.notification_noise import (
     release_notification_noise,
 )
 from src.report_language import (
+    display_metric,
+    format_dashboard_number,
+    format_money_amount,
+    format_per_share_amount,
+    format_share_volume,
+    get_chip_unavailable_reason,
     get_localized_stock_name,
     get_report_labels,
     get_signal_level,
-    get_chip_unavailable_reason,
+    get_bias_status_emoji,
     is_chip_structure_unavailable,
+    localize_action_window,
+    localize_bias_status,
     localize_chip_health,
     localize_conflict_severity,
     localize_consensus_level,
+    localize_immediate_action,
     localize_strategy_signal,
     localize_strategy_skill,
     localize_strategy_conflict_description,
     localize_strategy_synthesis_summary,
+    localize_time_sensitivity,
     localize_trend_prediction,
+    localize_user_visible_text,
+    localize_volume_status,
     normalize_report_language,
     normalize_strategy_synthesis_payload,
     pick_localized_text,
@@ -910,7 +922,7 @@ class NotificationService(
             f"# 📅 {report_date} {labels['report_title']}",
             "",
             f"> {labels['analyzed_prefix']} **{len(results)}** {labels['stock_unit']} | "
-            f"{labels['generated_at_label']}：{datetime.now().strftime('%H:%M:%S')}",
+            f"{labels['generated_at_label']}{labels['label_separator']}{datetime.now().strftime('%H:%M:%S')}",
         ]
         self._append_market_status_line(report_lines, results, report_language)
         report_lines.extend(["---", ""])
@@ -1091,7 +1103,7 @@ class NotificationService(
         # 底部信息（去除免责声明）
         report_lines.extend([
             "",
-            f"*{labels['generated_at_label']}：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*",
+            f"*{labels['generated_at_label']}{labels['label_separator']}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*",
         ])
 
         return "\n".join(report_lines)
@@ -1146,6 +1158,7 @@ class NotificationService(
         report_lines: List[str],
         dashboard: Dict[str, Any],
         labels: Dict[str, str],
+        report_language: Optional[str] = None,
     ) -> None:
         phase_decision = dashboard.get("phase_decision") if dashboard else None
         if not isinstance(phase_decision, dict):
@@ -1153,17 +1166,29 @@ class NotificationService(
         if not self._phase_decision_has_content(phase_decision):
             return
 
-        watch_conditions = self._phase_decision_list(phase_decision.get("watch_conditions"))
-        data_limitations = self._phase_decision_list(phase_decision.get("data_limitations"))
+        watch_conditions = [
+            localize_user_visible_text(item, report_language)
+            for item in self._phase_decision_list(phase_decision.get("watch_conditions"))
+        ]
+        data_limitations = [
+            localize_user_visible_text(item, report_language)
+            for item in self._phase_decision_list(phase_decision.get("data_limitations"))
+        ]
+        action_window = localize_action_window(
+            localize_user_visible_text(phase_decision.get("action_window") or "N/A", report_language),
+            report_language,
+        )
+        immediate_action = localize_immediate_action(
+            localize_user_visible_text(phase_decision.get("immediate_action") or "N/A", report_language),
+            report_language,
+        )
 
         report_lines.extend([
             f"### 🛡️ {labels['phase_decision_heading']}",
             "",
             f"| {labels['action_window_label']} | {labels['immediate_action_label']} | {labels['next_check_time_label']} |",
             "|---------|---------|---------|",
-            f"| {phase_decision.get('action_window') or 'N/A'} | "
-            f"{phase_decision.get('immediate_action') or 'N/A'} | "
-            f"{phase_decision.get('next_check_time') or 'N/A'} |",
+            f"| {action_window} | {immediate_action} | {phase_decision.get('next_check_time') or 'N/A'} |",
             "",
         ])
 
@@ -1173,7 +1198,10 @@ class NotificationService(
                 report_lines.append(f"- {condition}")
             report_lines.append("")
 
-        confidence_reason = str(phase_decision.get("confidence_reason") or "").strip()
+        confidence_reason = localize_user_visible_text(
+            str(phase_decision.get("confidence_reason") or "").strip(),
+            report_language,
+        )
         if confidence_reason:
             report_lines.extend([
                 f"**{labels['confidence_reason_label']}**: {confidence_reason}",
@@ -1374,7 +1402,10 @@ class NotificationService(
                 # ========== 核心结论 ==========
                 core = dashboard.get('core_conclusion', {}) if dashboard else {}
                 one_sentence = core.get('one_sentence', result.analysis_summary)
-                time_sense = core.get('time_sensitivity', labels['default_time_sensitivity'])
+                time_sense = localize_time_sensitivity(
+                    core.get('time_sensitivity', labels['default_time_sensitivity']),
+                    report_language,
+                )
                 pos_advice = core.get('position_advice', {})
 
                 report_lines.extend([
@@ -1382,7 +1413,7 @@ class NotificationService(
                     "",
                     f"**{signal_emoji} {signal_text}** | {localize_trend_prediction(result.trend_prediction, report_language)}",
                     "",
-                    f"> **{labels['one_sentence_label']}**: {one_sentence}",
+                    f"> **{labels['one_sentence_label']}**: {localize_user_visible_text(one_sentence, report_language)}",
                     "",
                     f"⏰ **{labels['time_sensitivity_label']}**: {time_sense}",
                     "",
@@ -1392,8 +1423,8 @@ class NotificationService(
                     report_lines.extend([
                         f"| {labels['position_status_label']} | {labels['action_advice_label']} |",
                         "|---------|---------|",
-                        f"| 🆕 **{labels['no_position_label']}** | {pos_advice.get('no_position', self._get_display_operation_advice(result, report_language))} |",
-                        f"| 💼 **{labels['has_position_label']}** | {pos_advice.get('has_position', labels['continue_holding'])} |",
+                        f"| 🆕 **{labels['no_position_label']}** | {localize_user_visible_text(pos_advice.get('no_position', self._get_display_operation_advice(result, report_language)), report_language)} |",
+                        f"| 💼 **{labels['has_position_label']}** | {localize_user_visible_text(pos_advice.get('has_position', labels['continue_holding']), report_language)} |",
                         "",
                     ])
 
@@ -1426,25 +1457,31 @@ class NotificationService(
                         ])
                     # 价格位置
                     if price_data:
-                        bias_status = price_data.get('bias_status', 'N/A')
+                        raw_bias_status = price_data.get('bias_status', 'N/A')
+                        bias_status = localize_bias_status(raw_bias_status, report_language)
+                        bias_emoji = get_bias_status_emoji(raw_bias_status)
                         report_lines.extend([
                             f"| {labels['price_metrics_label']} | {labels['current_price_label']} |",
                             "|---------|------|",
-                            f"| {labels['current_price_label']} | {price_data.get('current_price', 'N/A')} |",
-                            f"| {labels['ma5_label']} | {price_data.get('ma5', 'N/A')} |",
-                            f"| {labels['ma10_label']} | {price_data.get('ma10', 'N/A')} |",
-                            f"| {labels['ma20_label']} | {price_data.get('ma20', 'N/A')} |",
-                            f"| {labels['bias_ma5_label']} | {price_data.get('bias_ma5', 'N/A')}% {bias_status} |",
-                            f"| {labels['support_level_label']} | {price_data.get('support_level', 'N/A')} |",
-                            f"| {labels['resistance_level_label']} | {price_data.get('resistance_level', 'N/A')} |",
+                            f"| {labels['current_price_label']} | {format_dashboard_number(price_data.get('current_price', 'N/A'))} |",
+                            f"| {labels['ma5_label']} | {format_dashboard_number(price_data.get('ma5', 'N/A'))} |",
+                            f"| {labels['ma10_label']} | {format_dashboard_number(price_data.get('ma10', 'N/A'))} |",
+                            f"| {labels['ma20_label']} | {format_dashboard_number(price_data.get('ma20', 'N/A'))} |",
+                            f"| {labels['bias_ma5_label']} | {format_dashboard_number(price_data.get('bias_ma5', 'N/A'))}% {bias_emoji}{bias_status} |",
+                            f"| {labels['support_level_label']} | {format_dashboard_number(price_data.get('support_level', 'N/A'))} |",
+                            f"| {labels['resistance_level_label']} | {format_dashboard_number(price_data.get('resistance_level', 'N/A'))} |",
                             "",
                         ])
                     # 量能分析
                     if vol_data:
+                        volume_status = localize_volume_status(
+                            vol_data.get('volume_status', ''),
+                            report_language,
+                        )
                         report_lines.extend([
-                            f"**{labels['volume_label']}**: {labels['volume_ratio_label']} {vol_data.get('volume_ratio', 'N/A')} ({vol_data.get('volume_status', '')}) | "
-                            f"{labels['turnover_rate_label']} {vol_data.get('turnover_rate', 'N/A')}%",
-                            f"💡 *{vol_data.get('volume_meaning', '')}*",
+                            f"**{labels['volume_label']}**: {labels['volume_ratio_label']} {display_metric(vol_data.get('volume_ratio'))} ({volume_status}) | "
+                            f"{labels['turnover_rate_label']} {display_metric(vol_data.get('turnover_rate'))}%",
+                            f"💡 *{localize_user_visible_text(vol_data.get('volume_meaning', ''), report_language)}*",
                             "",
                         ])
                     # 筹码结构
@@ -1469,7 +1506,9 @@ class NotificationService(
                                 "",
                             ])
 
-                self._append_phase_decision_block(report_lines, dashboard, labels)
+                self._append_phase_decision_block(
+                    report_lines, dashboard, labels, report_language
+                )
 
                 # ========== 作战计划 ==========
                 battle = dashboard.get('battle_plan', {}) if dashboard else {}
@@ -1496,9 +1535,9 @@ class NotificationService(
                     position = battle.get('position_strategy', {})
                     if position:
                         report_lines.extend([
-                            f"**💰 {labels['suggested_position_label']}**: {position.get('suggested_position', 'N/A')}",
-                            f"- {labels['entry_plan_label']}: {position.get('entry_plan', 'N/A')}",
-                            f"- {labels['risk_control_label']}: {position.get('risk_control', 'N/A')}",
+                            f"**💰 {labels['suggested_position_label']}**: {localize_user_visible_text(position.get('suggested_position', 'N/A'), report_language)}",
+                            f"- {labels['entry_plan_label']}: {localize_user_visible_text(position.get('entry_plan', 'N/A'), report_language)}",
+                            f"- {labels['risk_control_label']}: {localize_user_visible_text(position.get('risk_control', 'N/A'), report_language)}",
                             "",
                         ])
                     # 检查清单
@@ -1509,7 +1548,9 @@ class NotificationService(
                             "",
                         ])
                         for item in checklist:
-                            report_lines.append(f"- {item}")
+                            report_lines.append(
+                                f"- {localize_user_visible_text(item, report_language)}"
+                            )
                         report_lines.append("")
 
                 # ========== 信号归因分析 ==========
@@ -1592,11 +1633,11 @@ class NotificationService(
         # 底部（去除免责声明）
         report_lines.extend([
             "",
-            f"*{labels['generated_at_label']}：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*",
+            f"*{labels['generated_at_label']}{labels['label_separator']}{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*",
         ])
         models = self._collect_models_used(results)
         if models:
-            report_lines.append(f"*{labels['analysis_model_label']}：{', '.join(models)}*")
+            report_lines.append(f"*{labels['analysis_model_label']}{labels['label_separator']}{', '.join(models)}*")
 
         return "\n".join(report_lines)
 
@@ -2097,16 +2138,16 @@ class NotificationService(
 
     # Display name mapping for realtime data sources
     _SOURCE_DISPLAY_NAMES = {
-        "tencent": {"zh": "腾讯财经", "en": "Tencent Finance"},
-        "akshare_em": {"zh": "东方财富", "en": "Eastmoney"},
-        "akshare_sina": {"zh": "新浪财经", "en": "Sina Finance"},
-        "akshare_qq": {"zh": "腾讯财经", "en": "Tencent Finance"},
-        "efinance": {"zh": "东方财富(efinance)", "en": "Eastmoney (efinance)"},
-        "tushare": {"zh": "Tushare Pro", "en": "Tushare Pro"},
-        "sina": {"zh": "新浪财经", "en": "Sina Finance"},
-        "stooq": {"zh": "Stooq", "en": "Stooq"},
-        "longbridge": {"zh": "长桥", "en": "Longbridge"},
-        "fallback": {"zh": "降级兜底", "en": "Fallback"},
+        "tencent": {"zh": "腾讯财经", "en": "Tencent Finance", "ko": "텐센트 금융", "it": "Tencent Finance"},
+        "akshare_em": {"zh": "东方财富", "en": "Eastmoney", "ko": "동방재부", "it": "Eastmoney"},
+        "akshare_sina": {"zh": "新浪财经", "en": "Sina Finance", "ko": "시나 금융", "it": "Sina Finance"},
+        "akshare_qq": {"zh": "腾讯财经", "en": "Tencent Finance", "ko": "텐센트 금융", "it": "Tencent Finance"},
+        "efinance": {"zh": "东方财富(efinance)", "en": "Eastmoney (efinance)", "ko": "동방재부(efinance)", "it": "Eastmoney (efinance)"},
+        "tushare": {"zh": "Tushare Pro", "en": "Tushare Pro", "ko": "Tushare Pro", "it": "Tushare Pro"},
+        "sina": {"zh": "新浪财经", "en": "Sina Finance", "ko": "시나 금융", "it": "Sina Finance"},
+        "stooq": {"zh": "Stooq", "en": "Stooq", "ko": "Stooq", "it": "Stooq"},
+        "longbridge": {"zh": "长桥", "en": "Longbridge", "ko": "롱브릿지", "it": "Longbridge"},
+        "fallback": {"zh": "降级兜底", "en": "Fallback", "ko": "대체 시세", "it": "Fonte di riserva"},
     }
 
     def _get_source_display_name(self, source: Any, language: Optional[str]) -> str:
@@ -2136,7 +2177,8 @@ class NotificationService(
             f"{snapshot.get('open', 'N/A')} | {snapshot.get('high', 'N/A')} | "
             f"{snapshot.get('low', 'N/A')} | {snapshot.get('pct_chg', 'N/A')} | "
             f"{snapshot.get('change_amount', 'N/A')} | {snapshot.get('amplitude', 'N/A')} | "
-            f"{snapshot.get('volume', 'N/A')} | {snapshot.get('amount', 'N/A')} |",
+            f"{localize_user_visible_text(snapshot.get('volume', 'N/A'), report_language)} | "
+            f"{localize_user_visible_text(snapshot.get('amount', 'N/A'), report_language)} |",
         ])
 
         if "price" in snapshot:
@@ -2145,41 +2187,19 @@ class NotificationService(
                 "",
                 f"| {labels['current_price_label']} | {labels['volume_ratio_label']} | {labels['turnover_rate_label']} | {labels['source_label']} |",
                 "|-------|------|--------|----------|",
-                f"| {snapshot.get('price', 'N/A')} | {snapshot.get('volume_ratio', 'N/A')} | "
-                f"{snapshot.get('turnover_rate', 'N/A')} | {display_source} |",
+                f"| {snapshot.get('price', 'N/A')} | {display_metric(snapshot.get('volume_ratio'))} | "
+                f"{display_metric(snapshot.get('turnover_rate'))} | {display_source} |",
             ])
 
         lines.append("")
 
-    _CURRENCY_SUFFIX = {
-        "USD": "美元",
-        "HKD": "港元",
-        "CNY": "元",
-        "RMB": "元",
-        "CNH": "元",
-        "TWD": "新台币",  # 台股 (TWSE/TPEx) 以新台币计价，避免与 A 股「元」(人民币) 混淆
-    }
-
     @classmethod
-    def _format_amount_cn(cls, value: Any, currency: Optional[str] = None) -> str:
-        """Format absolute amounts in 亿/万 + currency suffix; returns N/A on non-numeric.
+    def _format_amount_cn(cls, value: Any, currency: Optional[str] = None, language: Optional[str] = "zh") -> str:
+        """Format absolute amounts with localized units; returns N/A on non-numeric.
 
-        ``currency`` accepts ``USD``/``HKD``/``CNY``; unknown values fall back to 元.
+        ``currency`` accepts ``USD``/``HKD``/``CNY``; unknown values fall back to 元 in Chinese.
         """
-        try:
-            amount = float(value)
-        except (TypeError, ValueError):
-            return "N/A"
-        if amount != amount:  # NaN
-            return "N/A"
-        sign = "-" if amount < 0 else ""
-        abs_amount = abs(amount)
-        suffix = cls._CURRENCY_SUFFIX.get((currency or "").upper(), "元")
-        if abs_amount >= 1e8:
-            return f"{sign}{abs_amount / 1e8:.2f} 亿{suffix}"
-        if abs_amount >= 1e4:
-            return f"{sign}{abs_amount / 1e4:.2f} 万{suffix}"
-        return f"{sign}{abs_amount:.0f} {suffix}"
+        return format_money_amount(value, currency, language)
 
     @staticmethod
     def _format_percent(value: Any) -> str:
@@ -2189,15 +2209,8 @@ class NotificationService(
             return "N/A"
 
     @classmethod
-    def _format_per_share(cls, value: Any, currency: Optional[str] = None) -> str:
-        try:
-            amount = float(value)
-        except (TypeError, ValueError):
-            return "N/A"
-        if amount != amount:  # NaN
-            return "N/A"
-        suffix = cls._CURRENCY_SUFFIX.get((currency or "").upper(), "元")
-        return f"{amount:.4f} {suffix}"
+    def _format_per_share(cls, value: Any, currency: Optional[str] = None, language: Optional[str] = "zh") -> str:
+        return format_per_share_amount(value, currency, language)
 
     @staticmethod
     def _format_text(value: Any) -> str:
@@ -2281,9 +2294,9 @@ class NotificationService(
         report_language = self._get_report_language(result)
         labels = get_report_labels(report_language)
 
-        self._append_financial_summary(lines, blocks, labels)
-        self._append_shareholder_return(lines, blocks, labels)
-        self._append_institutional_flow(lines, blocks, labels)
+        self._append_financial_summary(lines, blocks, labels, report_language)
+        self._append_shareholder_return(lines, blocks, labels, report_language)
+        self._append_institutional_flow(lines, blocks, labels, report_language)
         self._append_related_boards(lines, blocks, labels)
 
     def _append_financial_summary(
@@ -2291,15 +2304,16 @@ class NotificationService(
         lines: List[str],
         blocks: Dict[str, Any],
         labels: Dict[str, str],
+        report_language: Optional[str] = None,
     ) -> None:
         report = blocks.get("financial_report") or {}
         growth = blocks.get("growth") or {}
         currency = report.get("currency") if isinstance(report.get("currency"), str) else None
         cells = {
             "report_date": self._format_text(report.get("report_date")),
-            "revenue": self._format_amount_cn(report.get("revenue"), currency),
-            "net_profit": self._format_amount_cn(report.get("net_profit_parent"), currency),
-            "operating_cash_flow": self._format_amount_cn(report.get("operating_cash_flow"), currency),
+            "revenue": self._format_amount_cn(report.get("revenue"), currency, report_language),
+            "net_profit": self._format_amount_cn(report.get("net_profit_parent"), currency, report_language),
+            "operating_cash_flow": self._format_amount_cn(report.get("operating_cash_flow"), currency, report_language),
             "roe": self._format_percent(report.get("roe") if report.get("roe") is not None else growth.get("roe")),
             "revenue_yoy": self._format_percent(growth.get("revenue_yoy")),
             "net_profit_yoy": self._format_percent(growth.get("net_profit_yoy")),
@@ -2332,6 +2346,7 @@ class NotificationService(
         lines: List[str],
         blocks: Dict[str, Any],
         labels: Dict[str, str],
+        report_language: Optional[str] = None,
     ) -> None:
         dividend = blocks.get("dividend") or {}
         report = blocks.get("financial_report") or {}
@@ -2348,7 +2363,7 @@ class NotificationService(
 
         ttm_event_count = dividend.get("ttm_event_count")
         cells = {
-            "ttm_cash": self._format_per_share(dividend.get("ttm_cash_dividend_per_share"), dividend_currency),
+            "ttm_cash": self._format_per_share(dividend.get("ttm_cash_dividend_per_share"), dividend_currency, report_language),
             "ttm_count": str(ttm_event_count) if isinstance(ttm_event_count, int) else "N/A",
             "ttm_yield": self._format_percent(dividend.get("ttm_dividend_yield_pct")),
             "latest_ex": self._format_text(latest_event.get("ex_dividend_date") or latest_event.get("event_date")),
@@ -2372,30 +2387,27 @@ class NotificationService(
         ])
 
     @classmethod
-    def _format_net_shares(cls, value: Any) -> str:
-        """Format an institutional net buy/sell in 万股/亿股, signed (+ = net buy).
-
-        Thresholds: abs >= 1e8 -> 亿股, >= 1e4 -> 万股, else 股. None/NaN/non-numeric -> N/A.
-        """
+    def _format_net_shares(cls, value: Any, language: Optional[str] = "zh") -> str:
+        """Format an institutional net buy/sell, signed (+ = net buy)."""
         try:
             amount = float(value)
         except (TypeError, ValueError):
             return "N/A"
         if amount != amount:  # NaN
             return "N/A"
-        sign = "+" if amount > 0 else ("-" if amount < 0 else "")
-        a = abs(amount)
-        if a >= 1e8:
-            return f"{sign}{a / 1e8:.2f} 亿股"
-        if a >= 1e4:
-            return f"{sign}{a / 1e4:.2f} 万股"
-        return f"{sign}{a:.0f} 股"
+        formatted = format_share_volume(abs(amount), language)
+        if amount > 0:
+            return f"+{formatted}"
+        if amount < 0:
+            return f"-{formatted}" if not formatted.startswith("-") else formatted
+        return formatted
 
     def _append_institutional_flow(
         self,
         lines: List[str],
         blocks: Dict[str, Any],
         labels: Dict[str, str],
+        report_language: Optional[str] = None,
     ) -> None:
         """Append the 三大法人 (institutional flows) table — tw-only.
 
@@ -2407,10 +2419,10 @@ class NotificationService(
             return
         inst = blocks.get("institution") or {}
         cells = {
-            "foreign": self._format_net_shares(inst.get("foreign_net")),
-            "trust": self._format_net_shares(inst.get("trust_net")),
-            "dealer": self._format_net_shares(inst.get("dealer_net")),
-            "total": self._format_net_shares(inst.get("total_net")),
+            "foreign": self._format_net_shares(inst.get("foreign_net"), report_language),
+            "trust": self._format_net_shares(inst.get("trust_net"), report_language),
+            "dealer": self._format_net_shares(inst.get("dealer_net"), report_language),
+            "total": self._format_net_shares(inst.get("total_net"), report_language),
         }
         if all(v == "N/A" for v in cells.values()):
             return

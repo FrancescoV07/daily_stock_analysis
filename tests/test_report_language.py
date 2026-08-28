@@ -5,15 +5,26 @@ import unittest
 
 from src.report_language import (
     SUPPORTED_REPORT_LANGUAGES,
+    display_metric,
+    format_dashboard_number,
+    format_money_amount,
+    format_share_volume,
     get_bias_status_emoji,
     get_localized_stock_name,
     get_report_labels,
     get_sentiment_label,
     get_signal_level,
     infer_decision_type_from_advice,
-    localize_operation_advice,
-    localize_trend_prediction,
+    localize_action_window,
     localize_bias_status,
+    localize_immediate_action,
+    localize_index_display_name,
+    localize_operation_advice,
+    localize_position_size_text,
+    localize_residual_zh_tokens,
+    localize_time_sensitivity,
+    localize_trend_prediction,
+    localize_volume_status,
     normalize_report_language,
     uses_english_prompt_scaffolding,
 )
@@ -206,6 +217,38 @@ class ItalianReportLanguageTestCase(unittest.TestCase):
         self.assertTrue(uses_english_prompt_scaffolding("ko"))
         self.assertTrue(uses_english_prompt_scaffolding("en"))
         self.assertFalse(uses_english_prompt_scaffolding("zh"))
+
+    def test_italian_units_drop_chinese_share_and_currency_suffixes(self) -> None:
+        self.assertNotIn("万股", format_share_volume(27100300, "it"))
+        self.assertIn("mln di azioni", format_share_volume(27100300, "it"))
+        self.assertNotIn("美元", format_money_amount(1e8, "USD", "it"))
+        self.assertIn("USD", format_money_amount(1e8, "USD", "it"))
+        self.assertEqual(format_share_volume(0, "zh"), "0 股")
+
+    def test_italian_localizes_leftover_zh_enums_and_tokens(self) -> None:
+        self.assertEqual(localize_position_size_text("3 成", "it"), "30%")
+        self.assertEqual(localize_time_sensitivity("不急", "it"), "Non urgente")
+        self.assertEqual(localize_bias_status("安全", "it"), "Sicuro")
+        self.assertEqual(localize_volume_status("平量", "it"), "Volume stabile")
+        self.assertEqual(localize_volume_status("縮量/Contrazione", "it"), "Contrazione")
+        self.assertEqual(localize_action_window("盘后复盘", "it"), "Recap post-mercato")
+        self.assertEqual(
+            localize_immediate_action("无盘中动作", "it"),
+            "Nessuna azione infragiornaliera",
+        )
+        self.assertNotIn(
+            "利空",
+            localize_residual_zh_tokens("Assenza di notizie 利空 strutturali", "it"),
+        )
+        self.assertEqual(localize_index_display_name("上证指数", "it"), "SSE Composite")
+
+    def test_dashboard_metrics_hide_none_and_round_floats(self) -> None:
+        self.assertEqual(display_metric(None), "N/A")
+        self.assertEqual(display_metric("none"), "N/A")
+        self.assertEqual(format_dashboard_number(721.1099853515625), "721.11")
+        labels = get_report_labels("it")
+        self.assertEqual(labels["label_separator"], ": ")
+        self.assertEqual(labels["generated_at_label"], "Generato alle")
 
 
 if __name__ == "__main__":

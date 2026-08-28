@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import sys
 import unittest
 from email.header import decode_header, make_header
@@ -1983,6 +1984,35 @@ class TestTelegramSender(unittest.TestCase):
             sent_text = call.args[2]
             self.assertLessEqual(len(sent_text), 4096)
 
+    @mock.patch.object(TelegramSender, "_send_telegram_message", return_value=True)
+    def test_send_telegram_chunked_does_not_split_italian_word_or_heading(self, mock_send_telegram_message):
+        cfg = _config(telegram_bot_token="BOT", telegram_chat_id="CHAT")
+        sender = TelegramSender(cfg)
+        stock_a = (
+            "SPY\n\n"
+            + ("Il piano di ritracciamento resta valido. " * 200)
+            + "\n\n| MA5 e MA20 | Prezzo |\n|------------|--------|\n| 721.11 | 100 |\n"
+        )
+        stock_b = "QQQ\n\nSeconda scheda con recap post-mercato.\n"
+        content = stock_a + "\n---\n" + stock_b
+
+        result = sender._send_telegram_chunked(
+            "http://api.telegram.org",
+            "CHAT",
+            sender._convert_to_telegram_markdown(content),
+            max_length=4096,
+            timeout_seconds=3,
+        )
+
+        self.assertTrue(result)
+        payloads = [call.args[2] for call in mock_send_telegram_message.call_args_list]
+        self.assertGreaterEqual(len(payloads), 2)
+        for payload in payloads:
+            self.assertLessEqual(len(payload), 4096)
+            self.assertNotRegex(payload, r"ritracc(?!iamento)")
+            self.assertFalse(payload.lstrip().startswith("iamento"))
+        self.assertTrue(any(text.lstrip().startswith("QQQ") or "QQQ" in text[:20] for text in payloads))
+
     @mock.patch("src.notification_sender.telegram_sender.requests.post")
     def test_send_chunks_by_final_markdown_payload_length(self, mock_post):
         mock_post.return_value = _response(200, {"ok": True})
@@ -1996,7 +2026,9 @@ class TestTelegramSender(unittest.TestCase):
         self.assertGreaterEqual(mock_post.call_count, 2)
         payload_texts = [call.kwargs["json"]["text"] for call in mock_post.call_args_list]
         self.assertTrue(all(len(text) <= 4096 for text in payload_texts))
-        self.assertEqual("".join(payload_texts), sender._convert_to_telegram_markdown(content))
+        page_suffix = re.compile(r"\n\n\(\d+/\d+\)$")
+        reassembled = "".join(page_suffix.sub("", text) for text in payload_texts)
+        self.assertEqual(reassembled, sender._convert_to_telegram_markdown(content))
 
     @mock.patch("src.notification_sender.telegram_sender.requests.post")
     def test_send_plain_text_fallback_handles_non_json_200(self, mock_post):

@@ -13,7 +13,7 @@ import time
 import re
 
 from src.config import Config
-from src.formatters import strip_hidden_markdown_metadata
+from src.formatters import chunk_markdown_preserving_blocks, strip_hidden_markdown_metadata
 
 
 logger = logging.getLogger(__name__)
@@ -264,8 +264,7 @@ class TelegramSender:
         timeout_seconds: Optional[float] = None,
     ) -> bool:
         """按已转换的 Telegram Markdown payload 分段发送长消息。"""
-        # 按段落分割
-        sections = content.split("\n---\n")
+        sections = self._iter_telegram_sections(content)
         delimiter = "\n---\n"
         delimiter_length = len(delimiter)
 
@@ -298,14 +297,28 @@ class TelegramSender:
         def _split_long_section(section: str, limit: int) -> list[str]:
             if len(section) <= limit:
                 return [section]
-            chunks: list[str] = []
-            for start in range(0, len(section), limit):
-                chunks.append(section[start:start + limit])
-            return chunks
+            try:
+                return chunk_markdown_preserving_blocks(section, limit)
+            except ValueError:
+                chunks: list[str] = []
+                start = 0
+                while start < len(section):
+                    end = min(start + limit, len(section))
+                    if end < len(section):
+                        window = section[start:end]
+                        cut = max(window.rfind("\n"), window.rfind(" "))
+                        if cut >= limit // 4:
+                            end = start + cut
+                    if end <= start:
+                        end = min(start + limit, len(section))
+                    chunks.append(section[start:end])
+                    start = end
+                    while start < len(section) and section[start] in " \n":
+                        start += 1
+                return chunks or [section]
 
         for section in sections:
             if len(section) > max_length:
-                # 单段超限时强制切片，避免依赖“\\n---\\n”边界导致的整段超长发送
                 if not _flush_chunk():
                     return False
                 for long_chunk in _split_long_section(section, max_length):
@@ -335,11 +348,22 @@ class TelegramSender:
             current_chunk.append(section)
             current_length += additional_length
 
-        # 发送最后一块
         if not _flush_chunk():
             return False
 
         return all_success
+
+    @staticmethod
+    def _iter_telegram_sections(content: str) -> list[str]:
+        """Split on --- and H2 stock headings so chunks do not start mid-report."""
+        sections: list[str] = []
+        for block in content.split("\n---\n"):
+            parts = re.split(r"(?=\n## )", block)
+            for part in parts:
+                stripped = part.strip("\n")
+                if stripped:
+                    sections.append(stripped)
+        return sections
 
     def _send_telegram_photo(self, image_bytes: bytes) -> bool:
         """Send image via Telegram sendPhoto API (Issue #289)."""

@@ -343,6 +343,193 @@ _BIAS_STATUS_TRANSLATIONS = {
     "danger": {"zh": "危险", "en": "Danger", "ko": "위험", "it": "Pericolo"},
 }
 
+_TIME_SENSITIVITY_CANONICAL_MAP = {
+    "立即行动": "immediate",
+    "immediate": "immediate",
+    "immediato": "immediate",
+    "azione immediata": "immediate",
+    "今日内": "today",
+    "today": "today",
+    "in giornata": "today",
+    "this session": "today",
+    "本周内": "this_week",
+    "this week": "this_week",
+    "questa settimana": "this_week",
+    "不急": "not_urgent",
+    "not urgent": "not_urgent",
+    "non urgente": "not_urgent",
+    "下一交易日": "next_session",
+    "next session": "next_session",
+    "prossima sessione": "next_session",
+    "prossima seduta": "next_session",
+}
+
+_TIME_SENSITIVITY_TRANSLATIONS = {
+    "immediate": {"zh": "立即行动", "en": "Immediate", "ko": "즉시", "it": "Immediato"},
+    "today": {"zh": "今日内", "en": "Today", "ko": "오늘 중", "it": "In giornata"},
+    "this_week": {"zh": "本周内", "en": "This week", "ko": "이번 주", "it": "Questa settimana"},
+    "not_urgent": {"zh": "不急", "en": "Not urgent", "ko": "급하지 않음", "it": "Non urgente"},
+    "next_session": {"zh": "下一交易日", "en": "Next session", "ko": "다음 세션", "it": "Prossima sessione"},
+}
+
+_VOLUME_STATUS_CANONICAL_MAP = {
+    "放量": "expanding",
+    "heavy": "expanding",
+    "expanding": "expanding",
+    "in aumento": "expanding",
+    "volume in aumento": "expanding",
+    "缩量": "shrinking",
+    "縮量": "shrinking",
+    "shrink": "shrinking",
+    "shrinking": "shrinking",
+    "contrazione": "shrinking",
+    "contrazione dei volumi": "shrinking",
+    "平量": "flat",
+    "flat": "flat",
+    "normal": "flat",
+    "volume normale": "flat",
+    "volume stabile": "flat",
+    "volume pari": "flat",
+}
+
+_VOLUME_STATUS_TRANSLATIONS = {
+    "expanding": {"zh": "放量", "en": "Expanding", "ko": "거래량 증가", "it": "In aumento"},
+    "shrinking": {"zh": "缩量", "en": "Contracting", "ko": "거래량 감소", "it": "Contrazione"},
+    "flat": {"zh": "平量", "en": "Flat", "ko": "보합", "it": "Volume stabile"},
+}
+
+_ACTION_WINDOW_CANONICAL_MAP = {
+    "盘前计划": "premarket_plan",
+    "pre-market plan": "premarket_plan",
+    "premarket plan": "premarket_plan",
+    "piano pre-mercato": "premarket_plan",
+    "盘中跟踪": "intraday_track",
+    "intraday tracking": "intraday_track",
+    "monitoraggio infragiornaliero": "intraday_track",
+    "午间确认": "lunch_confirm",
+    "lunch confirmation": "lunch_confirm",
+    "conferma della pausa": "lunch_confirm",
+    "收盘前风控": "near_close_risk",
+    "near-close risk control": "near_close_risk",
+    "risk control near close": "near_close_risk",
+    "盘后复盘": "postmarket_recap",
+    "收盘后复盘": "postmarket_recap",
+    "post-market recap": "postmarket_recap",
+    "postmarket recap": "postmarket_recap",
+    "recap post-mercato": "postmarket_recap",
+    "riepilogo post-mercato": "postmarket_recap",
+    "riepilogo post-chiusura": "postmarket_recap",
+    "非交易日观察": "non_trading_watch",
+    "non-trading observation": "non_trading_watch",
+    "osservazione fuori seduta": "non_trading_watch",
+}
+
+_ACTION_WINDOW_TRANSLATIONS = {
+    "premarket_plan": {
+        "zh": "盘前计划",
+        "en": "Pre-market plan",
+        "ko": "장전 계획",
+        "it": "Piano pre-mercato",
+    },
+    "intraday_track": {
+        "zh": "盘中跟踪",
+        "en": "Intraday tracking",
+        "ko": "장중 추적",
+        "it": "Monitoraggio infragiornaliero",
+    },
+    "lunch_confirm": {
+        "zh": "午间确认",
+        "en": "Lunch confirmation",
+        "ko": "점심 확인",
+        "it": "Conferma della pausa",
+    },
+    "near_close_risk": {
+        "zh": "收盘前风控",
+        "en": "Near-close risk control",
+        "ko": "마감 전 리스크 관리",
+        "it": "Controllo del rischio a fine seduta",
+    },
+    "postmarket_recap": {
+        "zh": "盘后复盘",
+        "en": "Post-market recap",
+        "ko": "장후 리뷰",
+        "it": "Recap post-mercato",
+    },
+    "non_trading_watch": {
+        "zh": "非交易日观察",
+        "en": "Non-trading observation",
+        "ko": "휴장일 관찰",
+        "it": "Osservazione fuori seduta",
+    },
+}
+
+_IMMEDIATE_ACTION_CANONICAL_MAP = {
+    "立即行动": "act_now",
+    "act now": "act_now",
+    "azione immediata": "act_now",
+    "等待确认": "wait_confirm",
+    "wait for confirmation": "wait_confirm",
+    "wait": "wait_confirm",
+    "attendi conferma": "wait_confirm",
+    "观察": "watch",
+    "watch": "watch",
+    "osserva": "watch",
+    "止损止盈预警": "stop_alert",
+    "stop-loss / take-profit alert": "stop_alert",
+    "allerta stop": "stop_alert",
+    "禁止追高": "no_chase",
+    "do not chase": "no_chase",
+    "non inseguire": "no_chase",
+    "无盘中动作": "no_intraday",
+    "no intraday action": "no_intraday",
+    "nessuna azione infragiornaliera": "no_intraday",
+    "nessuna azione immediata a mercato chiuso": "no_intraday",
+}
+
+_IMMEDIATE_ACTION_TRANSLATIONS = {
+    "act_now": {"zh": "立即行动", "en": "Act now", "ko": "즉시 행동", "it": "Azione immediata"},
+    "wait_confirm": {"zh": "等待确认", "en": "Wait for confirmation", "ko": "확인 대기", "it": "Attendi conferma"},
+    "watch": {"zh": "观察", "en": "Watch", "ko": "관찰", "it": "Osserva"},
+    "stop_alert": {
+        "zh": "止损止盈预警",
+        "en": "Stop-loss / take-profit alert",
+        "ko": "손절·익절 경보",
+        "it": "Allerta stop/take-profit",
+    },
+    "no_chase": {"zh": "禁止追高", "en": "Do not chase", "ko": "추격 금지", "it": "Non inseguire"},
+    "no_intraday": {
+        "zh": "无盘中动作",
+        "en": "No intraday action",
+        "ko": "장중 행동 없음",
+        "it": "Nessuna azione infragiornaliera",
+    },
+}
+
+_RESIDUAL_ZH_TOKEN_TRANSLATIONS = {
+    "利空": {"en": "bearish", "ko": "악재", "it": "negative"},
+    "利好": {"en": "bullish", "ko": "호재", "it": "positive"},
+}
+
+_POSITION_CHENG_RE = re.compile(r"(?<![0-9.])(\d+(?:[.,]\d+)?)\s*成(?![一-龥])")
+_MISSING_METRIC_VALUES = {"", "none", "null", "nan", "n/a", "na"}
+
+_CURRENCY_SUFFIX_ZH = {
+    "USD": "美元",
+    "HKD": "港元",
+    "CNY": "元",
+    "RMB": "元",
+    "CNH": "元",
+    "TWD": "新台币",
+}
+
+_INDEX_DISPLAY_NAMES = {
+    "上证指数": {"en": "SSE Composite", "ko": "상하이종합", "it": "SSE Composite"},
+    "深证成指": {"en": "SZSE Component", "ko": "선전성분", "it": "SZSE Component"},
+    "创业板指": {"en": "ChiNext", "ko": "창업판", "it": "ChiNext"},
+    "科创50": {"en": "STAR 50", "ko": "커촹50", "it": "STAR 50"},
+    "科创 50": {"en": "STAR 50", "ko": "커촹50", "it": "STAR 50"},
+}
+
 _PLACEHOLDER_BY_LANGUAGE = {
     "zh": "待补充",
     "en": "TBD",
@@ -543,6 +730,7 @@ _REPORT_LABELS: Dict[str, Dict[str, str]] = {
         "strategy_supporting_skills_label": "支持策略",
         "strategy_opposing_skills_label": "反方策略",
         "strategy_invalid_opinions_label": "另有 {count} 个策略解析失败",
+        "label_separator": "：",
     },
     "en": {
         "dashboard_title": "Decision Dashboard",
@@ -677,6 +865,7 @@ _REPORT_LABELS: Dict[str, Dict[str, str]] = {
         "strategy_supporting_skills_label": "Supporting Strategies",
         "strategy_opposing_skills_label": "Opposing Strategies",
         "strategy_invalid_opinions_label": "{count} additional strategies failed to produce valid signals",
+        "label_separator": ": ",
     },
     "ko": {
         "dashboard_title": "결정 대시보드",
@@ -811,6 +1000,7 @@ _REPORT_LABELS: Dict[str, Dict[str, str]] = {
         "strategy_supporting_skills_label": "지지 전략",
         "strategy_opposing_skills_label": "반대 전략",
         "strategy_invalid_opinions_label": "추가로 {count}개 전략이 유효한 신호를 생성하지 못했습니다",
+        "label_separator": ": ",
     },
     "it": {
         "dashboard_title": "Cruscotto decisionale",
@@ -945,6 +1135,7 @@ _REPORT_LABELS: Dict[str, Dict[str, str]] = {
         "strategy_supporting_skills_label": "Strategie a favore",
         "strategy_opposing_skills_label": "Strategie contrarie",
         "strategy_invalid_opinions_label": "{count} strategie aggiuntive non hanno prodotto segnali validi",
+        "label_separator": ": ",
     },
 }
 
@@ -1447,6 +1638,273 @@ def localize_bias_status(value: Any, language: Optional[str]) -> str:
         canonical_map=_BIAS_STATUS_CANONICAL_MAP,
         translations=_BIAS_STATUS_TRANSLATIONS,
     )
+
+
+def localize_time_sensitivity(value: Any, language: Optional[str]) -> str:
+    """Translate time-sensitivity enums left in model output."""
+    return _translate_from_map(
+        value,
+        language,
+        canonical_map=_TIME_SENSITIVITY_CANONICAL_MAP,
+        translations=_TIME_SENSITIVITY_TRANSLATIONS,
+    )
+
+
+def localize_volume_status(value: Any, language: Optional[str]) -> str:
+    """Translate volume-status enums, including mixed 缩量/Contrazione values."""
+    return _translate_from_map(
+        value,
+        language,
+        canonical_map=_VOLUME_STATUS_CANONICAL_MAP,
+        translations=_VOLUME_STATUS_TRANSLATIONS,
+    )
+
+
+def localize_action_window(value: Any, language: Optional[str]) -> str:
+    """Translate phase action-window labels."""
+    return _translate_from_map(
+        value,
+        language,
+        canonical_map=_ACTION_WINDOW_CANONICAL_MAP,
+        translations=_ACTION_WINDOW_TRANSLATIONS,
+    )
+
+
+def localize_immediate_action(value: Any, language: Optional[str]) -> str:
+    """Translate phase immediate-action labels."""
+    return _translate_from_map(
+        value,
+        language,
+        canonical_map=_IMMEDIATE_ACTION_CANONICAL_MAP,
+        translations=_IMMEDIATE_ACTION_TRANSLATIONS,
+    )
+
+
+def display_metric(value: Any, fallback: str = "N/A") -> str:
+    """Render a dashboard metric, mapping None/null placeholders to N/A."""
+    if value is None:
+        return fallback
+    text = str(value).strip()
+    if not text or text.lower() in _MISSING_METRIC_VALUES:
+        return fallback
+    return text
+
+
+def format_dashboard_number(value: Any, fallback: str = "N/A") -> str:
+    """Round numeric dashboard cells; keep non-numeric text (already formatted)."""
+    if value is None:
+        return fallback
+    if isinstance(value, bool):
+        return fallback
+    if isinstance(value, (int, float)):
+        if value != value:  # NaN
+            return fallback
+        return f"{float(value):.2f}"
+    text = str(value).strip()
+    if not text or text.lower() in _MISSING_METRIC_VALUES:
+        return fallback
+    try:
+        number = float(text.replace(",", ""))
+    except ValueError:
+        return text
+    if number != number:
+        return fallback
+    if re.fullmatch(r"[+-]?\d+(\.\d+)?", text.replace(",", "")):
+        return f"{number:.2f}"
+    return text
+
+
+def format_share_volume(value: Any, language: Optional[str] = "zh") -> str:
+    """Format a share count with language-appropriate units."""
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if amount != amount:
+        return "N/A"
+    lang = normalize_report_language(language)
+    sign = "-" if amount < 0 else ""
+    abs_amount = abs(amount)
+    if lang == "zh":
+        if abs_amount >= 1e8:
+            return f"{sign}{abs_amount / 1e8:.2f} 亿股"
+        if abs_amount >= 1e4:
+            return f"{sign}{abs_amount / 1e4:.2f} 万股"
+        return f"{sign}{abs_amount:.0f} 股"
+    if lang == "ko":
+        if abs_amount >= 1e8:
+            return f"{sign}{abs_amount / 1e8:.2f}억주"
+        if abs_amount >= 1e4:
+            return f"{sign}{abs_amount / 1e4:.2f}만주"
+        return f"{sign}{abs_amount:.0f}주"
+    if lang == "it":
+        if abs_amount >= 1e9:
+            return f"{sign}{abs_amount / 1e9:.2f} mld di azioni"
+        if abs_amount >= 1e6:
+            return f"{sign}{abs_amount / 1e6:.2f} mln di azioni"
+        return f"{sign}{abs_amount:.0f} azioni"
+    if abs_amount >= 1e9:
+        return f"{sign}{abs_amount / 1e9:.2f}B shares"
+    if abs_amount >= 1e6:
+        return f"{sign}{abs_amount / 1e6:.2f}M shares"
+    return f"{sign}{abs_amount:.0f} shares"
+
+
+def format_money_amount(value: Any, currency: Optional[str] = None, language: Optional[str] = "zh") -> str:
+    """Format an absolute money amount with localized units."""
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if amount != amount:
+        return "N/A"
+    lang = normalize_report_language(language)
+    sign = "-" if amount < 0 else ""
+    abs_amount = abs(amount)
+    code = (currency or "").upper()
+    if lang == "zh":
+        suffix = _CURRENCY_SUFFIX_ZH.get(code, "元")
+        if abs_amount >= 1e8:
+            return f"{sign}{abs_amount / 1e8:.2f} 亿{suffix}"
+        if abs_amount >= 1e4:
+            return f"{sign}{abs_amount / 1e4:.2f} 万{suffix}"
+        return f"{sign}{abs_amount:.0f} {suffix}"
+    unit = code or "CNY"
+    if lang == "it":
+        if abs_amount >= 1e9:
+            return f"{sign}{abs_amount / 1e9:.2f} mld {unit}"
+        if abs_amount >= 1e6:
+            return f"{sign}{abs_amount / 1e6:.2f} mln {unit}"
+        return f"{sign}{abs_amount:.2f} {unit}"
+    if lang == "ko":
+        suffix = _CURRENCY_SUFFIX_ZH.get(code, unit)
+        if abs_amount >= 1e8:
+            return f"{sign}{abs_amount / 1e8:.2f}억 {suffix}"
+        if abs_amount >= 1e4:
+            return f"{sign}{abs_amount / 1e4:.2f}만 {suffix}"
+        return f"{sign}{abs_amount:.0f} {suffix}"
+    if abs_amount >= 1e9:
+        return f"{sign}{abs_amount / 1e9:.2f}B {unit}"
+    if abs_amount >= 1e6:
+        return f"{sign}{abs_amount / 1e6:.2f}M {unit}"
+    return f"{sign}{abs_amount:.2f} {unit}"
+
+
+def format_per_share_amount(value: Any, currency: Optional[str] = None, language: Optional[str] = "zh") -> str:
+    """Format a per-share cash amount."""
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if amount != amount:
+        return "N/A"
+    lang = normalize_report_language(language)
+    code = (currency or "").upper()
+    if lang == "zh":
+        suffix = _CURRENCY_SUFFIX_ZH.get(code, "元")
+        return f"{amount:.4f} {suffix}"
+    unit = code or "CNY"
+    return f"{amount:.4f} {unit}"
+
+
+def localize_index_display_name(name: Any, language: Optional[str]) -> str:
+    """Localize well-known index chrome names; leave data names unchanged."""
+    raw = str(name or "").strip()
+    if not raw:
+        return raw
+    lang = normalize_report_language(language)
+    mapping = _INDEX_DISPLAY_NAMES.get(raw)
+    if not mapping:
+        return raw
+    if lang == "zh":
+        return raw
+    return mapping.get(lang) or mapping.get("en") or raw
+
+
+def localize_position_size_text(value: Any, language: Optional[str]) -> str:
+    """Convert leftover 成 position-size units into percent wording."""
+    text = str(value or "")
+    lang = normalize_report_language(language)
+    if lang == "zh" or "成" not in text:
+        return text
+
+    def _replace(match: re.Match[str]) -> str:
+        raw_number = match.group(1).replace(",", ".")
+        try:
+            cheng = float(raw_number)
+        except ValueError:
+            return match.group(0)
+        percent = cheng * 10
+        percent_text = f"{percent:.0f}%" if percent.is_integer() else f"{percent:.1f}%"
+        if lang == "it":
+            return f"{percent_text}"
+        if lang == "ko":
+            return f"{percent_text}"
+        return f"{percent_text}"
+
+    return _POSITION_CHENG_RE.sub(_replace, text)
+
+
+def localize_residual_zh_tokens(value: Any, language: Optional[str]) -> str:
+    """Replace leftover Chinese chrome tokens inside otherwise localized text."""
+    text = str(value or "")
+    lang = normalize_report_language(language)
+    if lang == "zh" or not text:
+        return text
+
+    def _shares(match: re.Match[str]) -> str:
+        try:
+            number = float(match.group(1))
+        except ValueError:
+            return match.group(0)
+        unit = match.group(2)
+        shares = number * (1e8 if unit == "亿股" else 1e4)
+        return format_share_volume(shares, lang)
+
+    def _yi_money(match: re.Match[str]) -> str:
+        try:
+            number = float(match.group(1))
+        except ValueError:
+            return match.group(0)
+        currency_name = match.group(2)
+        currency = {"美元": "USD", "港元": "HKD", "新台币": "TWD"}.get(currency_name, "CNY")
+        return format_money_amount(number * 1e8, currency, lang)
+
+    text = re.sub(r"([+-]?\d+(?:\.\d+)?)\s*(亿股|万股)", _shares, text)
+    text = re.sub(r"([+-]?\d+(?:\.\d+)?)\s*亿(美元|港元|元|新台币)", _yi_money, text)
+    text = re.sub(r"([+-]?\d+(?:\.\d+)?)\s*美元", r"\1 USD", text)
+    text = re.sub(r"([+-]?\d+(?:\.\d+)?)\s*港元", r"\1 HKD", text)
+    text = localize_position_size_text(text, lang)
+    for token, translations in _RESIDUAL_ZH_TOKEN_TRANSLATIONS.items():
+        if token in text:
+            replacement = translations.get(lang) or translations.get("en")
+            if replacement:
+                text = text.replace(token, replacement)
+    return text
+
+
+def localize_user_visible_text(value: Any, language: Optional[str]) -> str:
+    """Apply enum + residual-token localization to a free-text chrome field."""
+    if value is None:
+        return ""
+    text = str(value)
+    lang = normalize_report_language(language)
+    localized = localize_time_sensitivity(text, lang)
+    if localized != text:
+        text = localized
+    localized = localize_volume_status(text, lang)
+    if localized != text:
+        text = localized
+    localized = localize_action_window(text, lang)
+    if localized != text:
+        text = localized
+    localized = localize_immediate_action(text, lang)
+    if localized != text:
+        text = localized
+    localized = localize_bias_status(text, lang)
+    if localized != text:
+        text = localized
+    return localize_residual_zh_tokens(text, lang)
 
 
 def get_bias_status_emoji(value: Any) -> str:

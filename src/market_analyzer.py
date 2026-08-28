@@ -22,7 +22,12 @@ import pandas as pd
 
 from src.agent.provider_trace import resolved_model_provider_identity
 from src.config import get_config
-from src.report_language import normalize_report_language, uses_english_prompt_scaffolding
+from src.report_language import (
+    localize_index_display_name,
+    normalize_report_language,
+    pick_localized_text,
+    uses_english_prompt_scaffolding,
+)
 from src.search_service import SearchService
 from src.core.market_profile import get_profile, MarketProfile
 from src.core.market_strategy import get_market_strategy_blueprint
@@ -54,6 +59,12 @@ _CHINESE_SECTION_PATTERNS = {
     "sector_highlights": r"###\s*三、(?:板块主线|热点解读|板块表现)",
     "funds_sentiment": r"###\s*四、(?:资金与情绪|资金动向)",
     "news_catalysts": r"###\s*五、(?:消息催化|后市展望)",
+}
+
+_ITALIAN_SECTION_PATTERNS = {
+    "market_summary": r"###\s*(?:1\.\s*)?(?:Sintesi di mercato|Market Summary)",
+    "index_commentary": r"###\s*(?:2\.\s*)?(?:Principali indici|Index Commentary|Major Indices)",
+    "sector_highlights": r"###\s*(?:4\.\s*)?(?:Settori / temi|Settore / temi|Sector Highlights|Sector/Theme Highlights)",
 }
 
 
@@ -294,34 +305,40 @@ class MarketAnalyzer:
         language = self._get_output_language()
         return "en" if uses_english_prompt_scaffolding(language) else language
 
+    def _get_chrome_language(self) -> str:
+        """User-visible recap chrome. Korean keeps English chrome; Italian uses Italian."""
+        output = self._get_output_language()
+        if output == "ko":
+            return "en"
+        return output
+
     def _get_template_review_language(self) -> str:
-        return self._get_review_language()
+        return self._get_chrome_language()
 
     def _get_market_scope_name(self, review_language: str | None = None) -> str:
-        review_language = review_language or self._get_review_language()
+        review_language = review_language or self._get_chrome_language()
         if self.region == "us":
-            return "US market" if review_language == "en" else "美股市场"
+            return pick_localized_text(review_language, zh="美股市场", en="US market", ko="미국 시장", it="mercato USA")
         if self.region == "hk":
-            return "Hong Kong market" if review_language == "en" else "港股市场"
+            return pick_localized_text(review_language, zh="港股市场", en="Hong Kong market", ko="홍콩 시장", it="mercato HK")
         if self.region == "jp":
-            return "Japan market" if review_language == "en" else "日本市场"
+            return pick_localized_text(review_language, zh="日本市场", en="Japan market", ko="일본 시장", it="mercato Giappone")
         if self.region == "kr":
-            return "Korea market" if review_language == "en" else "韩国市场"
-        if review_language == "en":
-            return "A-share market"
-        return "A股市场"
+            return pick_localized_text(review_language, zh="韩国市场", en="Korea market", ko="한국 시장", it="mercato Corea")
+        return pick_localized_text(review_language, zh="A股市场", en="A-share market", ko="중국 A주 시장", it="mercato A-share")
 
     def _get_turnover_unit_label(self) -> str:
         """Return the turnover unit label for the current market/language."""
+        chrome = self._get_chrome_language()
         if self.region == "us":
-            return "USD bn" if self._get_review_language() == "en" else "十亿美元"
+            return pick_localized_text(chrome, zh="十亿美元", en="USD bn", ko="USD bn", it="mld USD")
         if self.region == "hk":
-            return "HKD bn" if self._get_review_language() == "en" else "十亿港元"
+            return pick_localized_text(chrome, zh="十亿港元", en="HKD bn", ko="HKD bn", it="mld HKD")
         if self.region == "jp":
-            return "JPY bn" if self._get_review_language() == "en" else "十亿日元"
+            return pick_localized_text(chrome, zh="十亿日元", en="JPY bn", ko="JPY bn", it="mld JPY")
         if self.region == "kr":
-            return "KRW bn" if self._get_review_language() == "en" else "十亿韩元"
-        return "CNY 100m" if self._get_review_language() == "en" else "亿"
+            return pick_localized_text(chrome, zh="十亿韩元", en="KRW bn", ko="KRW bn", it="mld KRW")
+        return pick_localized_text(chrome, zh="亿", en="CNY 100m", ko="CNY 100m", it="100 mln CNY")
 
     def _format_turnover_value(self, amount_raw: float) -> str:
         """Format raw turnover according to market-specific units."""
@@ -342,16 +359,26 @@ class MarketAnalyzer:
         return "🟢" if change_pct > 0 else "🔴"
 
     def _get_review_title(self, date: str) -> str:
-        if self._get_review_language() == "en":
-            market_names = {
-                "us": "US Market Recap",
-                "hk": "HK Market Recap",
-                "jp": "Japan Market Recap",
-                "kr": "Korea Market Recap",
-            }
-            market_name = market_names.get(self.region, "A-share Market Recap")
-            return f"## {date} {market_name}"
-        return f"## {date} 大盘复盘"
+        chrome = self._get_chrome_language()
+        if chrome == "zh":
+            return f"## {date} 大盘复盘"
+        market_names = {
+            "us": pick_localized_text(chrome, zh="美股大盘复盘", en="US Market Recap", ko="미국 시황 리뷰", it="Recap mercato USA"),
+            "hk": pick_localized_text(chrome, zh="港股大盘复盘", en="HK Market Recap", ko="홍콩 시황 리뷰", it="Recap mercato HK"),
+            "jp": pick_localized_text(chrome, zh="日股大盘复盘", en="Japan Market Recap", ko="일본 시황 리뷰", it="Recap mercato Giappone"),
+            "kr": pick_localized_text(chrome, zh="韩股大盘复盘", en="Korea Market Recap", ko="한국 시황 리뷰", it="Recap mercato Corea"),
+        }
+        market_name = market_names.get(
+            self.region,
+            pick_localized_text(
+                chrome,
+                zh="A股大盘复盘",
+                en="A-share Market Recap",
+                ko="중국 A주 시황 리뷰",
+                it="Recap mercato A-share",
+            ),
+        )
+        return f"## {date} {market_name}"
 
     def _get_index_hint(self) -> str:
         if self._get_review_language() == "en":
@@ -496,7 +523,13 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
 - Defensive: indices weaken and laggards broaden; prioritize risk control and de-risking."""
 
     def _get_strategy_markdown_block(self, review_language: str | None = None) -> str:
-        review_language = review_language or self._get_review_language()
+        review_language = review_language or self._get_chrome_language()
+        if review_language == "it":
+            return """### 6. Quadro operativo
+- **Struttura del trend**: determina se il mercato è in uptrend, range o fase difensiva.
+- **Liquidità e sentiment**: segui ampiezza, espansione del controvalore e divergenze dei leader.
+- **Temi guida**: concentrati sui settori con catalizzatori e leadership persistente, evitando debolezze che si allargano.
+"""
         if self.region == "hk" and review_language == "en":
             return """### 6. Strategy Framework
 - **Trend Regime**: Classify the market as momentum, range, or risk-off based on HSI/HSTECH/HSCEI alignment.
@@ -530,23 +563,14 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
 """
 
     def _get_market_mood_text(self, mood_key: str, review_language: str | None = None) -> str:
-        review_language = review_language or self._get_review_language()
-        if review_language == "en":
-            mapping = {
-                "strong_up": "strong gains",
-                "mild_up": "moderate gains",
-                "mild_down": "mild losses",
-                "strong_down": "clear weakness",
-                "range": "range-bound trading",
-            }
-        else:
-            mapping = {
-                "strong_up": "强势上涨",
-                "mild_up": "小幅上涨",
-                "mild_down": "小幅下跌",
-                "strong_down": "明显下跌",
-                "range": "震荡整理",
-            }
+        review_language = review_language or self._get_chrome_language()
+        mapping = {
+            "strong_up": pick_localized_text(review_language, zh="强势上涨", en="strong gains", ko="강한 상승", it="rialzi robusti"),
+            "mild_up": pick_localized_text(review_language, zh="小幅上涨", en="moderate gains", ko="소폭 상승", it="rialzi moderati"),
+            "mild_down": pick_localized_text(review_language, zh="小幅下跌", en="mild losses", ko="소폭 하락", it="flessioni contenute"),
+            "strong_down": pick_localized_text(review_language, zh="明显下跌", en="clear weakness", ko="뚜렷한 약세", it="debolezza evidente"),
+            "range": pick_localized_text(review_language, zh="震荡整理", en="range-bound trading", ko="박스권", it="trading laterale"),
+        }
         return mapping[mood_key]
 
     def get_market_overview(self) -> MarketOverview:
@@ -1137,11 +1161,13 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         stats_block = self._build_stats_block(overview)
         indices_block = self._build_indices_block(overview)
         sector_block = self._build_sector_block(overview)
-        patterns = (
-            _ENGLISH_SECTION_PATTERNS
-            if self._get_review_language() == "en"
-            else _CHINESE_SECTION_PATTERNS
-        )
+        chrome = self._get_chrome_language()
+        if chrome == "it":
+            patterns = _ITALIAN_SECTION_PATTERNS
+        elif chrome == "en":
+            patterns = _ENGLISH_SECTION_PATTERNS
+        else:
+            patterns = _CHINESE_SECTION_PATTERNS
 
         if stats_block:
             review = self._insert_after_section(
@@ -1165,10 +1191,12 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
                 sector_block,
             )
             if review == original_review and sector_block not in review:
-                fallback_heading = (
-                    "### 4. Sector Highlights"
-                    if self._get_review_language() == "en"
-                    else "### 三、板块主线"
+                fallback_heading = pick_localized_text(
+                    self._get_chrome_language(),
+                    zh="### 三、板块主线",
+                    en="### 4. Sector Highlights",
+                    ko="### 4. Sector Highlights",
+                    it="### 4. Settori / temi",
                 )
                 review = f"{review.rstrip()}\n\n{fallback_heading}\n{sector_block}\n"
 
@@ -1200,25 +1228,33 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         if not has_stats and not has_market_signal:
             return ""
         light = self.build_market_light_snapshot(overview) if has_market_signal else None
-        if self._get_review_language() == "en":
+        chrome = self._get_chrome_language()
+        if chrome != "zh":
             lines = []
             if isinstance(light, dict):
+                signal_label = pick_localized_text(chrome, zh="盘面信号", en="Market Signal", ko="Market Signal", it="Segnale di mercato")
+                drivers_label = pick_localized_text(chrome, zh="信号依据", en="Drivers", ko="Drivers", it="Driver")
+                guidance_label = pick_localized_text(chrome, zh="操作建议", en="Guidance", ko="Guidance", it="Indicazioni")
                 lines.extend(
                     [
-                        f"- **Market Signal**: {light['score']}/100 "
+                        f"- **{signal_label}**: {light['score']}/100 "
                         f"({light['temperature_label']}, {light['label']})",
-                        f"- **Drivers**: {'; '.join(light['reasons'])}",
-                        f"- **Guidance**: {light['guidance']}",
+                        f"- **{drivers_label}**: {'; '.join(light['reasons'])}",
+                        f"- **{guidance_label}**: {light['guidance']}",
                     ]
                 )
             if has_stats:
                 if lines:
                     lines.append("")
+                breadth_label = pick_localized_text(chrome, zh="市场宽度", en="Breadth", ko="Breadth", it="Ampiezza")
                 lines.append(
-                    f"- **Breadth**: Advancers {overview.up_count} / Decliners {overview.down_count} / "
-                    f"Flat {overview.flat_count}; "
-                    f"Limit-up {overview.limit_up_count} / Limit-down {overview.limit_down_count}; "
-                    f"Turnover {overview.total_amount:.0f} ({self._get_turnover_unit_label()})"
+                    f"- **{breadth_label}**: "
+                    f"{pick_localized_text(chrome, zh='上涨', en='Advancers', ko='Advancers', it='In rialzo')} {overview.up_count} / "
+                    f"{pick_localized_text(chrome, zh='下跌', en='Decliners', ko='Decliners', it='In calo')} {overview.down_count} / "
+                    f"{pick_localized_text(chrome, zh='平盘', en='Flat', ko='Flat', it='Invariati')} {overview.flat_count}; "
+                    f"{pick_localized_text(chrome, zh='涨停', en='Limit-up', ko='Limit-up', it='Limit-up')} {overview.limit_up_count} / "
+                    f"{pick_localized_text(chrome, zh='跌停', en='Limit-down', ko='Limit-down', it='Limit-down')} {overview.limit_down_count}; "
+                    f"{pick_localized_text(chrome, zh='成交额', en='Turnover', ko='Turnover', it='Controvalore')} {overview.total_amount:.0f} ({self._get_turnover_unit_label()})"
                 )
             return "\n".join(lines)
         lines = []
@@ -1261,18 +1297,41 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         else:
             status = "red"
 
-        if self._get_review_language() == "en":
+        chrome = self._get_chrome_language()
+        if chrome != "zh":
             label_map = {
-                "green": "risk-on",
-                "yellow": "balanced",
-                "red": "risk-off",
+                "green": pick_localized_text(chrome, zh="可进攻", en="risk-on", ko="risk-on", it="risk-on"),
+                "yellow": pick_localized_text(chrome, zh="需观察", en="balanced", ko="balanced", it="equilibrato"),
+                "red": pick_localized_text(chrome, zh="偏防守", en="risk-off", ko="risk-off", it="risk-off"),
             }
             guidance_map = {
-                "green": "Risk appetite is acceptable; focus on leading themes and position discipline.",
-                "yellow": "Signals are mixed; keep position sizing moderate and wait for confirmation.",
-                "red": "Risk is elevated; prioritize drawdown control and avoid chasing weak rebounds.",
+                "green": pick_localized_text(
+                    chrome,
+                    zh="风险偏好尚可，关注主线延续与仓位纪律。",
+                    en="Risk appetite is acceptable; focus on leading themes and position discipline.",
+                    ko="Risk appetite is acceptable; focus on leading themes and position discipline.",
+                    it="L'appetito per il rischio è accettabile; concentrati sui temi guida e sulla disciplina di posizione.",
+                ),
+                "yellow": pick_localized_text(
+                    chrome,
+                    zh="信号分化，控制仓位并等待量价确认。",
+                    en="Signals are mixed; keep position sizing moderate and wait for confirmation.",
+                    ko="Signals are mixed; keep position sizing moderate and wait for confirmation.",
+                    it="I segnali sono misti; tieni la size moderata e attendi conferma.",
+                ),
+                "red": pick_localized_text(
+                    chrome,
+                    zh="风险偏高，优先控制回撤，避免追高弱反弹。",
+                    en="Risk is elevated; prioritize drawdown control and avoid chasing weak rebounds.",
+                    ko="Risk is elevated; prioritize drawdown control and avoid chasing weak rebounds.",
+                    it="Il rischio è elevato; dai priorità al controllo del drawdown e non inseguire i rimbalzi deboli.",
+                ),
             }
-            reasons = self._build_market_light_reasons_en(overview, score)
+            reasons = (
+                self._build_market_light_reasons_it(overview, score)
+                if chrome == "it"
+                else self._build_market_light_reasons_en(overview, score)
+            )
         else:
             label_map = {
                 "green": "可进攻",
@@ -1346,13 +1405,47 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
             reasons.append("limited structured breadth data; using available market inputs")
         return reasons[:4]
 
+    def _build_market_light_reasons_it(self, overview: MarketOverview, score: int) -> List[str]:
+        participation = overview.up_count + overview.down_count
+        up_ratio = overview.up_count / participation if participation else None
+        reasons: List[str] = []
+        if up_ratio is not None:
+            if up_ratio >= 0.6:
+                reasons.append(f"rapporto rialzisti {up_ratio:.0%}, ampiezza in espansione")
+            elif up_ratio <= 0.4:
+                reasons.append(f"rapporto rialzisti {up_ratio:.0%}, prevale la pressione al ribasso")
+            else:
+                reasons.append(f"rapporto rialzisti {up_ratio:.0%}, ampiezza mista")
+        index_changes = [idx.change_pct for idx in overview.indices if idx.change_pct is not None]
+        if index_changes:
+            avg_change = sum(index_changes) / len(index_changes)
+            reasons.append(f"variazione media dei principali indici {avg_change:+.2f}%")
+        if overview.limit_up_count or overview.limit_down_count:
+            reasons.append(
+                f"spread limit-up/down {overview.limit_up_count - overview.limit_down_count:+d}"
+            )
+        if not reasons and overview.total_amount:
+            reasons.append(f"controvalore {overview.total_amount:.0f} ({self._get_turnover_unit_label()})")
+        if not reasons:
+            reasons.append("dati di ampiezza strutturati limitati; uso gli input di mercato disponibili")
+        return reasons[:4]
+
     def _build_indices_block(self, overview: MarketOverview) -> str:
         """构建指数行情表格"""
         if not overview.indices:
             return ""
-        if self._get_review_language() == "en":
+        chrome = self._get_chrome_language()
+        if chrome != "zh":
+            index_label = pick_localized_text(chrome, zh="指数", en="Index", ko="Index", it="Indice")
+            last_label = pick_localized_text(chrome, zh="最新", en="Last", ko="Last", it="Ultimo")
+            change_label = pick_localized_text(chrome, zh="涨跌幅", en="Change %", ko="Change %", it="Var. %")
             lines = [
-                f"| Index | Last | Change % | Open | High | Low | Amplitude | Turnover ({self._get_turnover_unit_label()}) |",
+                f"| {index_label} | {last_label} | {change_label} | "
+                f"{pick_localized_text(chrome, zh='开盘', en='Open', ko='Open', it='Apertura')} | "
+                f"{pick_localized_text(chrome, zh='最高', en='High', ko='High', it='Massimo')} | "
+                f"{pick_localized_text(chrome, zh='最低', en='Low', ko='Low', it='Minimo')} | "
+                f"{pick_localized_text(chrome, zh='振幅', en='Amplitude', ko='Amplitude', it='Ampiezza')} | "
+                f"{pick_localized_text(chrome, zh='成交额', en='Turnover', ko='Turnover', it='Controvalore')} ({self._get_turnover_unit_label()}) |",
                 "|-------|------|----------|------|------|-----|-----------|-----------------|",
             ]
         else:
@@ -1365,7 +1458,7 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
             amount_raw = idx.amount or 0.0
             amount_str = self._format_turnover_value(amount_raw)
             lines.append(
-                f"| {idx.name} | {idx.current:.2f} | {arrow} {idx.change_pct:+.2f}% | "
+                f"| {localize_index_display_name(idx.name, self._get_chrome_language())} | {idx.current:.2f} | {arrow} {idx.change_pct:+.2f}% | "
                 f"{self._format_optional_number(idx.open)} | {self._format_optional_number(idx.high)} | "
                 f"{self._format_optional_number(idx.low)} | {self._format_optional_pct(idx.amplitude)} | {amount_str} |"
             )
@@ -1381,16 +1474,18 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         ):
             return ""
         lines = []
-        language = self._get_review_language()
+        language = self._get_chrome_language()
 
         def append_ranking(title: str, name_label: str, rows: List[Dict]) -> None:
             if not rows:
                 return
             if lines:
                 lines.append("")
+            rank_label = pick_localized_text(language, zh="排名", en="Rank", ko="Rank", it="Pos.")
+            change_label = pick_localized_text(language, zh="涨跌幅", en="Change", ko="Change", it="Var. %")
             lines.extend([
                 title,
-                f"| {'Rank' if language == 'en' else '排名'} | {name_label} | {'Change' if language == 'en' else '涨跌幅'} |",
+                f"| {rank_label} | {name_label} | {change_label} |",
                 "|------|------|--------|",
             ])
             for rank, item in enumerate(rows[:5], 1):
@@ -1398,7 +1493,12 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
                     f"| {rank} | {item.get('name', '-')} | {self._format_signed_pct(item.get('change_pct'))} |"
                 )
 
-        if language == "en":
+        if language == "it":
+            append_ranking("#### Settori industriali in testa", "Settore", overview.top_sectors)
+            append_ranking("#### Settori industriali in ritardo", "Settore", overview.bottom_sectors)
+            append_ranking("#### Temi/concept in testa", "Tema", overview.top_concepts)
+            append_ranking("#### Temi/concept in ritardo", "Tema", overview.bottom_concepts)
+        elif language == "en":
             append_ranking("#### Leading Industry Sectors", "Sector", overview.top_sectors)
             append_ranking("#### Lagging Industry Sectors", "Sector", overview.bottom_sectors)
             append_ranking("#### Leading Concept Themes", "Concept", overview.top_concepts)
@@ -1414,15 +1514,15 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         """Build a compact source-aware news catalyst list for the rendered report."""
         if not news:
             return ""
-        language = self._get_review_language()
-        if language == "en":
-            lines = [
-                "#### News Catalysts",
-            ]
-        else:
-            lines = [
-                "#### 近三日市场线索",
-            ]
+        language = self._get_chrome_language()
+        heading = pick_localized_text(
+            language,
+            zh="#### 近三日市场线索",
+            en="#### News Catalysts",
+            ko="#### News Catalysts",
+            it="#### Catalizzatori di news",
+        )
+        lines = [heading]
 
         for idx, item in enumerate(news[:5], 1):
             lines.append(self._format_news_catalyst_line(idx, item, language=language))
@@ -1440,7 +1540,12 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
 
     @classmethod
     def _format_news_catalyst_line(cls, idx: int, item: Any, *, language: str = "zh") -> str:
-        fallback_title = "Untitled catalyst" if language == "en" else "未命名线索"
+        if language == "it":
+            fallback_title = "Catalizzatore senza titolo"
+        elif language == "en":
+            fallback_title = "Untitled catalyst"
+        else:
+            fallback_title = "未命名线索"
         title = cls._compact_news_text(cls._get_news_field(item, "title"), limit=90) or fallback_title
         source = cls._compact_news_text(cls._get_news_field(item, "source"), limit=40)
         date_text = cls._compact_news_text(cls._get_news_field(item, "published_date"), limit=24)
@@ -1449,7 +1554,7 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         if url:
             title_text = f"[{title_text}]({url})"
         meta_parts = [part for part in (source, date_text) if part]
-        if language == "en":
+        if language in ("en", "it"):
             meta = f" ({' / '.join(meta_parts)})" if meta_parts else ""
         else:
             meta = f"（{' / '.join(meta_parts)}）" if meta_parts else ""
@@ -1540,7 +1645,17 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
             data_quality = "partial"
 
         score = int(round(breadth_score * 0.45 + index_score * 0.35 + limit_score * 0.20))
-        if self._get_review_language() == "en":
+        chrome = self._get_chrome_language()
+        if chrome == "it":
+            if score >= 70:
+                label = "risk-on"
+            elif score >= 55:
+                label = "costruttivo"
+            elif score >= 40:
+                label = "misto"
+            else:
+                label = "difensivo"
+        elif chrome != "zh":
             if score >= 70:
                 label = "risk-on"
             elif score >= 55:
@@ -1573,6 +1688,44 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
 
     def _build_output_template_sections(self, review_language: str) -> str:
         """Build LLM output sections according to market data capabilities."""
+        if review_language == "it":
+            if self.profile.has_market_stats and self.profile.has_sector_rankings:
+                return """### 3. Flussi e liquidità
+(Interpreta controvalore, partecipazione e segnali di flusso.)
+
+### 4. Settori / temi
+(Distingui i movimenti di settore da quelli tematici, poi analizza driver e persistenza.)
+
+### 5. Prospettive
+(Fornisci la prospettiva di breve sulla base di prezzo e notizie.)
+
+### 6. Allerte di rischio
+(Elenca i rischi principali da monitorare.)
+
+### 7. Quadro operativo
+(Fornisci una postura offensiva/equilibrata/difensiva, una guida di size, un trigger di invalidazione e chiudi con "Solo a scopo informativo, non costituisce consulenza finanziaria.")"""
+            section_number = 3
+            sections: List[str] = []
+            if self.profile.has_market_stats:
+                sections.append(f"""### {section_number}. Flussi e liquidità
+(Interpreta solo i segnali di controvalore, partecipazione, ampiezza e flusso forniti.)""")
+                section_number += 1
+            if self.profile.has_sector_rankings:
+                sections.append(f"""### {section_number}. Settori / temi
+(Analizza solo le classifiche di settore e tema fornite.)""")
+                section_number += 1
+            sections.extend([
+                f"""### {section_number}. Catalizzatori di news
+(Collega le news recenti all'azione degli indici. Non inventare ampiezza, flussi o classifiche non fornite.)""",
+                f"""### {section_number + 1}. Prospettive
+(Fornisci la prospettiva di breve sulla base degli indici e delle news disponibili.)""",
+                f"""### {section_number + 2}. Allerte di rischio
+(Elenca i rischi principali da monitorare.)""",
+                f"""### {section_number + 3}. Quadro operativo
+(Fornisci una postura offensiva/equilibrata/difensiva, una guida di size, un trigger di invalidazione e chiudi con "Solo a scopo informativo, non costituisce consulenza finanziaria.")""",
+            ])
+            return "\n\n".join(sections)
+
         if review_language == "en":
             if self.profile.has_market_stats and self.profile.has_sector_rankings:
                 return """### 3. Fund Flows
@@ -1664,9 +1817,11 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
 
         # 指数行情信息（简洁格式，不用emoji）
         indices_text = ""
+        chrome_language = self._get_chrome_language()
         for idx in overview.indices:
             direction = "↑" if idx.change_pct > 0 else "↓" if idx.change_pct < 0 else "-"
-            indices_text += f"- {idx.name}: {idx.current:.2f} ({direction}{abs(idx.change_pct):.2f}%)\n"
+            index_name = localize_index_display_name(idx.name, chrome_language)
+            indices_text += f"- {index_name}: {idx.current:.2f} ({direction}{abs(idx.change_pct):.2f}%)\n"
         
         # 板块信息
         top_sectors_text = self._format_ranking_summary(overview.top_sectors)
@@ -1774,7 +1929,7 @@ Concept lagging: {bottom_concepts_text if bottom_concepts_text else "N/A"}"""
                 else "2-3句话概括指数表现、新闻线索和整体风险状态，不要补写未提供的市场宽度或资金流数据"
             )
 
-        output_template_sections = self._build_output_template_sections(review_language)
+        output_template_sections = self._build_output_template_sections(self._get_chrome_language())
         zh_market_scope_name = self._get_market_scope_name("zh")
         zh_report_title = f"{overview.date} 大盘复盘"
         if self.region in ("jp", "kr"):
@@ -1787,6 +1942,27 @@ Concept lagging: {bottom_concepts_text if bottom_concepts_text else "N/A"}"""
 
         if review_language == "en":
             report_title = self._get_review_title(overview.date).removeprefix("## ").strip()
+            chrome_language = self._get_chrome_language()
+            summary_heading = pick_localized_text(
+                chrome_language,
+                zh="### 1. 市场总结",
+                en="### 1. Market Summary",
+                ko="### 1. Market Summary",
+                it="### 1. Sintesi di mercato",
+            )
+            index_heading = pick_localized_text(
+                chrome_language,
+                zh="### 2. 指数点评",
+                en="### 2. Index Commentary",
+                ko="### 2. Index Commentary",
+                it="### 2. Principali indici",
+            )
+            italian_chrome_rule = ""
+            if output_language == "it":
+                italian_chrome_rule = (
+                    "- Do not copy Chinese chrome such as 板块主线, 排名, 涨跌幅, 上证指数, 万股, or 美元; "
+                    "copy the Italian headings from the output template.\n"
+                )
             return f"""You are a professional {self._get_market_scope_name('en')} analyst. Please produce a concise market recap report based on the data below.
 
 [Requirements]
@@ -1795,7 +1971,7 @@ Concept lagging: {bottom_concepts_text if bottom_concepts_text else "N/A"}"""
 - No code blocks
 - Use emoji sparingly in headings (at most one per heading)
 - The entire fixed shell, headings, guidance, and conclusion must be in {shell_language_label}
-{data_boundary_requirement}
+{italian_chrome_rule}{data_boundary_requirement}
 
 ---
 
@@ -1826,10 +2002,10 @@ Concept lagging: {bottom_concepts_text if bottom_concepts_text else "N/A"}"""
 
 ## {report_title}
 
-### 1. Market Summary
+{summary_heading}
 ({market_summary_hint})
 
-### 2. Index Commentary
+{index_heading}
 ({self._get_index_hint()})
 
 {output_template_sections}
@@ -1926,56 +2102,90 @@ Output the report content directly, no extra commentary.
         indices_text = ""
         for idx in overview.indices[:4]:
             marker = self._get_index_change_arrow(idx.change_pct)
-            indices_text += f"- **{idx.name}**: {idx.current:.2f} ({marker} {idx.change_pct:+.2f}%)\n"
+            indices_text += (
+                f"- **{localize_index_display_name(idx.name, template_language)}**: "
+                f"{idx.current:.2f} ({marker} {idx.change_pct:+.2f}%)\n"
+            )
         
         # 板块信息
-        separator = ", " if template_language == "en" else "、"
+        separator = "、" if template_language == "zh" else ", "
         top_text = separator.join([s['name'] for s in overview.top_sectors[:3]])
         bottom_text = separator.join([s['name'] for s in overview.bottom_sectors[:3]])
         top_concept_text = separator.join([s['name'] for s in overview.top_concepts[:3]])
         bottom_concept_text = separator.join([s['name'] for s in overview.bottom_concepts[:3]])
 
-        if template_language == "en":
+        if template_language != "zh":
             stats_section = ""
             if self._supports_market_light() or self.profile.has_market_stats:
                 stats_block = self._build_stats_block(overview)
                 if stats_block:
+                    breadth_heading = pick_localized_text(
+                        template_language,
+                        zh="### 3. 资金与情绪",
+                        en="### 3. Breadth & Liquidity",
+                        ko="### 3. Breadth & Liquidity",
+                        it="### 3. Ampiezza e liquidità",
+                    )
                     stats_section = f"""
-### 3. Breadth & Liquidity
+{breadth_heading}
 {stats_block}
 """
             sector_section = ""
             if self.profile.has_sector_rankings and (top_text or bottom_text or top_concept_text or bottom_concept_text):
+                sector_heading = pick_localized_text(
+                    template_language,
+                    zh="### 4. 板块主线",
+                    en="### 4. Sector / Theme Highlights",
+                    ko="### 4. Sector / Theme Highlights",
+                    it="### 4. Settori / temi",
+                )
                 sector_section = f"""
-### 4. Sector / Theme Highlights
-- **Industry Leaders**: {top_text or "N/A"}
-- **Industry Laggards**: {bottom_text or "N/A"}
-- **Concept Leaders**: {top_concept_text or "N/A"}
-- **Concept Laggards**: {bottom_concept_text or "N/A"}
+{sector_heading}
+- **{pick_localized_text(template_language, zh='行业领涨', en='Industry Leaders', ko='Industry Leaders', it='Settori in testa')}**: {top_text or "N/A"}
+- **{pick_localized_text(template_language, zh='行业领跌', en='Industry Laggards', ko='Industry Laggards', it='Settori in ritardo')}**: {bottom_text or "N/A"}
+- **{pick_localized_text(template_language, zh='概念领涨', en='Concept Leaders', ko='Concept Leaders', it='Temi in testa')}**: {top_concept_text or "N/A"}
+- **{pick_localized_text(template_language, zh='概念领跌', en='Concept Laggards', ko='Concept Laggards', it='Temi in ritardo')}**: {bottom_concept_text or "N/A"}
 """
-            market_names = {
-                "us": "US Market Recap",
-                "hk": "HK Market Recap",
-                "jp": "Japan Market Recap",
-                "kr": "Korea Market Recap",
-            }
-            market_name = market_names.get(self.region, "A-share Market Recap")
-            report = f"""## {overview.date} {market_name}
+            market_name = self._get_review_title(overview.date).removeprefix("## ").strip()
+            summary_heading = pick_localized_text(
+                template_language, zh="### 1. 市场总结", en="### 1. Market Summary", ko="### 1. Market Summary", it="### 1. Sintesi di mercato"
+            )
+            indices_heading = pick_localized_text(
+                template_language, zh="### 2. 主要指数", en="### 2. Major Indices", ko="### 2. Major Indices", it="### 2. Principali indici"
+            )
+            risk_heading = pick_localized_text(
+                template_language, zh="### 5. 风险提示", en="### 5. Risk Alerts", ko="### 5. Risk Alerts", it="### 5. Allerte di rischio"
+            )
+            risk_body = pick_localized_text(
+                template_language,
+                zh="市场变化较快。以上数据仅供参考，不构成投资建议。",
+                en="Market conditions can change quickly. The data above is for reference only and does not constitute investment advice.",
+                ko="Market conditions can change quickly. The data above is for reference only and does not constitute investment advice.",
+                it="Le condizioni di mercato possono cambiare rapidamente. I dati sopra sono solo di riferimento e non costituiscono consulenza finanziaria.",
+            )
+            showed = pick_localized_text(
+                template_language,
+                zh="今日市场整体呈现",
+                en="Today's",
+                ko="Today's",
+                it="Oggi il",
+            )
+            report = f"""## {market_name}
 
-### 1. Market Summary
-Today's {self._get_market_scope_name(template_language)} showed **{market_mood}**.
+{summary_heading}
+{showed} {self._get_market_scope_name(template_language)} {pick_localized_text(template_language, zh='态势', en='showed', ko='showed', it='ha mostrato')} **{market_mood}**.
 
-### 2. Major Indices
-{indices_text or "- No index data available"}
+{indices_heading}
+{indices_text or pick_localized_text(template_language, zh='- 暂无指数数据', en='- No index data available', ko='- No index data available', it='- Dati sugli indici non disponibili')}
 {stats_section}
 {sector_section}
-### 5. Risk Alerts
-Market conditions can change quickly. The data above is for reference only and does not constitute investment advice.
+{risk_heading}
+{risk_body}
 
 {self._get_strategy_markdown_block(template_language)}
 
 ---
-*Review Time: {datetime.now().strftime('%H:%M')}*
+*{pick_localized_text(template_language, zh='生成时间', en='Review Time', ko='Review Time', it='Ora del recap')}: {datetime.now().strftime('%H:%M')}*
 """
             return report
 
