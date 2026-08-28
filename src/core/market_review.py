@@ -674,7 +674,13 @@ def _render_sector_payload_markdown_block(
     if not sector_block:
         return ""
     language = normalize_report_language(payload.get("language"))
-    title = "Sector Highlights" if language == "en" else "板块主线"
+    title = pick_localized_text(
+        language,
+        zh="板块主线",
+        en="Sector Highlights",
+        ko="섹터 하이라이트",
+        it="Settori / temi",
+    )
     heading = f"{title_prefix} / {title}" if title_prefix else title
     return f"### {heading}\n\n{sector_block}".strip()
 
@@ -686,6 +692,7 @@ def _markdown_has_sector_table(markdown: Any, *, title_prefix: str = "") -> bool
         prefixed_markers = (
             f"### {title} / 板块主线",
             f"### {title} / Sector Highlights",
+            f"### {title} / Settori / temi",
         )
         if any(marker in text for marker in prefixed_markers):
             return True
@@ -731,9 +738,14 @@ def _markdown_contains_sector_markers(text: str) -> bool:
         "#### Lagging Sectors",
         "#### Leading Industry Sectors",
         "#### Lagging Industry Sectors",
+        "#### Settori in testa",
+        "#### Settori in ritardo",
+        "#### Settori industriali in testa",
+        "#### Settori industriali in ritardo",
         "| 排名 | 板块 |",
         "| 排名 | 行业板块 |",
         "| Rank | Sector |",
+        "| Pos. | Settore |",
     )
     return any(marker in text for marker in markers)
 
@@ -750,10 +762,21 @@ def _render_sector_payload_block(payload: Dict[str, Any]) -> str:
     language = normalize_report_language(payload.get("language"))
     lines = []
     if top:
-        if language == "en":
-            lines.extend(["#### Leading Sectors", "| Rank | Sector | Change |", "|------|--------|--------|"])
-        else:
-            lines.extend(["#### 领涨板块 Top 5", "| 排名 | 板块 | 涨跌幅 |", "|------|------|--------|"])
+        heading = pick_localized_text(
+            language,
+            zh="#### 领涨板块 Top 5",
+            en="#### Leading Sectors",
+            ko="#### Leading Sectors",
+            it="#### Settori in testa",
+        )
+        header = pick_localized_text(
+            language,
+            zh="| 排名 | 板块 | 涨跌幅 |",
+            en="| Rank | Sector | Change |",
+            ko="| Rank | Sector | Change |",
+            it="| Pos. | Settore | Var. % |",
+        )
+        lines.extend([heading, header, "|------|--------|--------|"])
         for rank, sector in enumerate(top[:5], 1):
             if not isinstance(sector, dict):
                 continue
@@ -762,10 +785,21 @@ def _render_sector_payload_block(payload: Dict[str, Any]) -> str:
     if bottom:
         if lines:
             lines.append("")
-        if language == "en":
-            lines.extend(["#### Lagging Sectors", "| Rank | Sector | Change |", "|------|--------|--------|"])
-        else:
-            lines.extend(["#### 领跌板块 Top 5", "| 排名 | 板块 | 涨跌幅 |", "|------|------|--------|"])
+        heading = pick_localized_text(
+            language,
+            zh="#### 领跌板块 Top 5",
+            en="#### Lagging Sectors",
+            ko="#### Lagging Sectors",
+            it="#### Settori in ritardo",
+        )
+        header = pick_localized_text(
+            language,
+            zh="| 排名 | 板块 | 涨跌幅 |",
+            en="| Rank | Sector | Change |",
+            ko="| Rank | Sector | Change |",
+            it="| Pos. | Settore | Var. % |",
+        )
+        lines.extend([heading, header, "|------|--------|--------|"])
         for rank, sector in enumerate(bottom[:5], 1):
             if not isinstance(sector, dict):
                 continue

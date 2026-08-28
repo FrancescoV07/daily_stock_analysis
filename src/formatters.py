@@ -412,6 +412,17 @@ def chunk_markdown_preserving_blocks(
         if split_at < 1:
             split_at = cp_limit
 
+        # Prefer closing a chunk before a Markdown table row rather than mid-cell.
+        line_start = remaining.rfind("\n", 0, split_at) + 1
+        line = remaining[line_start:split_at]
+        if line.lstrip().startswith("|") and split_at < len(remaining) and remaining[split_at] != "\n":
+            row_end = remaining.find("\n", line_start)
+            row_end = len(remaining) if row_end < 0 else row_end
+            if line_start > 0 and measure(remaining[:line_start]) <= headroom:
+                split_at = line_start
+            elif row_end > split_at and measure(remaining[:row_end]) <= headroom:
+                split_at = row_end
+
         candidate = remaining[:split_at]
         unsafe_start = len(candidate)
         if _has_unclosed_inline_code(candidate):

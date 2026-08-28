@@ -20,6 +20,8 @@ from src.config import get_config, resolve_news_window_days
 from src.formatters import markdown_to_plain_text
 from src.data.stock_index_loader import resolve_index_stock_code
 from src.report_language import (
+    display_metric,
+    format_dashboard_number,
     get_bias_status_emoji,
     get_localized_stock_name,
     get_report_labels,
@@ -33,7 +35,10 @@ from src.report_language import (
     localize_strategy_signal,
     localize_strategy_skill,
     localize_strategy_synthesis_summary,
+    localize_time_sensitivity,
     localize_trend_prediction,
+    localize_user_visible_text,
+    localize_volume_status,
     normalize_report_language,
     normalize_strategy_synthesis_payload,
     pick_localized_text,
@@ -1083,7 +1088,10 @@ class HistoryService:
         # ========== 核心结论 ==========
         core = dashboard.get('core_conclusion', {}) if dashboard else {}
         one_sentence = core.get('one_sentence', result.analysis_summary)
-        time_sense = core.get('time_sensitivity', labels['default_time_sensitivity'])
+        time_sense = localize_time_sensitivity(
+            core.get('time_sensitivity', labels['default_time_sensitivity']),
+            report_language,
+        )
         pos_advice = core.get('position_advice', {})
 
         report_lines.extend([
@@ -1091,7 +1099,7 @@ class HistoryService:
             "",
             f"**{signal_emoji} {signal_text}** | {localize_trend_prediction(result.trend_prediction, report_language)}",
             "",
-            f"> **{labels['one_sentence_label']}**: {one_sentence}",
+            f"> **{labels['one_sentence_label']}**: {localize_user_visible_text(one_sentence, report_language)}",
             "",
             f"⏰ **{labels['time_sensitivity_label']}**: {time_sense}",
             "",
@@ -1101,8 +1109,8 @@ class HistoryService:
             report_lines.extend([
                 f"| {labels['position_status_label']} | {labels['action_advice_label']} |",
                 "|---------|---------|",
-                f"| 🆕 **{labels['no_position_label']}** | {pos_advice.get('no_position', self._get_display_operation_advice(result, report_language))} |",
-                f"| 💼 **{labels['has_position_label']}** | {pos_advice.get('has_position', labels['continue_holding'])} |",
+                f"| 🆕 **{labels['no_position_label']}** | {localize_user_visible_text(pos_advice.get('no_position', self._get_display_operation_advice(result, report_language)), report_language)} |",
+                f"| 💼 **{labels['has_position_label']}** | {localize_user_visible_text(pos_advice.get('has_position', labels['continue_holding']), report_language)} |",
                 "",
             ])
 
@@ -1142,21 +1150,21 @@ class HistoryService:
                 report_lines.extend([
                     f"| {labels['price_metrics_label']} | {labels['current_price_label']} |",
                     "|---------|------|",
-                    f"| {labels['current_price_label']} | {price_data.get('current_price', 'N/A')} |",
-                    f"| {labels['ma5_label']} | {price_data.get('ma5', 'N/A')} |",
-                    f"| {labels['ma10_label']} | {price_data.get('ma10', 'N/A')} |",
-                    f"| {labels['ma20_label']} | {price_data.get('ma20', 'N/A')} |",
-                    f"| {labels['bias_ma5_label']} | {price_data.get('bias_ma5', 'N/A')}% {bias_emoji}{bias_status} |",
-                    f"| {labels['support_level_label']} | {price_data.get('support_level', 'N/A')} |",
-                    f"| {labels['resistance_level_label']} | {price_data.get('resistance_level', 'N/A')} |",
+                    f"| {labels['current_price_label']} | {format_dashboard_number(price_data.get('current_price', 'N/A'))} |",
+                    f"| {labels['ma5_label']} | {format_dashboard_number(price_data.get('ma5', 'N/A'))} |",
+                    f"| {labels['ma10_label']} | {format_dashboard_number(price_data.get('ma10', 'N/A'))} |",
+                    f"| {labels['ma20_label']} | {format_dashboard_number(price_data.get('ma20', 'N/A'))} |",
+                    f"| {labels['bias_ma5_label']} | {format_dashboard_number(price_data.get('bias_ma5', 'N/A'))}% {bias_emoji}{bias_status} |",
+                    f"| {labels['support_level_label']} | {format_dashboard_number(price_data.get('support_level', 'N/A'))} |",
+                    f"| {labels['resistance_level_label']} | {format_dashboard_number(price_data.get('resistance_level', 'N/A'))} |",
                     "",
                 ])
             # 量能分析
             if vol_data:
                 report_lines.extend([
-                    f"**{labels['volume_label']}**: {labels['volume_ratio_label']} {vol_data.get('volume_ratio', 'N/A')} "
-                    f"({vol_data.get('volume_status', '')}) | {labels['turnover_rate_label']} {vol_data.get('turnover_rate', 'N/A')}%",
-                    f"💡 *{vol_data.get('volume_meaning', '')}*",
+                    f"**{labels['volume_label']}**: {labels['volume_ratio_label']} {display_metric(vol_data.get('volume_ratio'))} "
+                    f"({localize_volume_status(vol_data.get('volume_status', ''), report_language)}) | {labels['turnover_rate_label']} {display_metric(vol_data.get('turnover_rate'))}%",
+                    f"💡 *{localize_user_visible_text(vol_data.get('volume_meaning', ''), report_language)}*",
                     "",
                 ])
             # 筹码结构
@@ -1214,9 +1222,9 @@ class HistoryService:
             position = battle.get('position_strategy', {})
             if position:
                 report_lines.extend([
-                    f"**💰 {labels['suggested_position_label']}**: {position.get('suggested_position', 'N/A')}",
-                    f"- {labels['entry_plan_label']}: {position.get('entry_plan', 'N/A')}",
-                    f"- {labels['risk_control_label']}: {position.get('risk_control', 'N/A')}",
+                    f"**💰 {labels['suggested_position_label']}**: {localize_user_visible_text(position.get('suggested_position', 'N/A'), report_language)}",
+                    f"- {labels['entry_plan_label']}: {localize_user_visible_text(position.get('entry_plan', 'N/A'), report_language)}",
+                    f"- {labels['risk_control_label']}: {localize_user_visible_text(position.get('risk_control', 'N/A'), report_language)}",
                     "",
                 ])
             # 检查清单
@@ -1227,7 +1235,7 @@ class HistoryService:
                     "",
                 ])
                 for item in checklist:
-                    report_lines.append(f"- {item}")
+                    report_lines.append(f"- {localize_user_visible_text(item, report_language)}")
                 report_lines.append("")
 
         # ========== 信号归因分析 ==========

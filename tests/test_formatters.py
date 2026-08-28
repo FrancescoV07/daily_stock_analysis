@@ -336,6 +336,31 @@ class TestChunkMarkdownPreservingBlocks(unittest.TestCase):
         for i, chunk in enumerate(chunks):
             self.assertIn(f"{i + 1}/{len(chunks)}", chunk)
 
+    def test_does_not_split_italian_words_or_table_cells(self):
+        paragraph = "Il piano di ritracciamento resta valido. " * 80
+        chunks = chunk_markdown_preserving_blocks(paragraph, 220)
+        self.assertGreater(len(chunks), 1)
+        for chunk in chunks:
+            body = self._strip_chunk_suffix(chunk)
+            self.assertNotIn("ritracc\n", body)
+            self.assertFalse(body.startswith("iamento"))
+            self.assertNotRegex(body, r"ritracc(?!iamento)")
+
+        table = (
+            "| MA5 e MA20 | Prezzo |\n"
+            "|------------|--------|\n"
+            + "\n".join("| 721.11 | 0) ritracciamento |" for _ in range(60))
+        )
+        table_chunks = chunk_markdown_preserving_blocks(table, 180)
+        self.assertGreater(len(table_chunks), 1)
+        for chunk in table_chunks:
+            body = self._strip_chunk_suffix(chunk)
+            self.assertNotIn("MA5 e MA2\n", body)
+            for line in body.split("\n"):
+                stripped = line.strip()
+                if stripped.startswith("|"):
+                    self.assertTrue(stripped.endswith("|"), msg=stripped)
+
 
 class TestNotificationMarkdownFormatters(unittest.TestCase):
     """Tests for chat-friendly report Markdown conversions."""
